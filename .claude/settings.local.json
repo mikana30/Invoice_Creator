@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /s /b)",
+      "Bash(findstr:*)",
+      "Bash(timeout:*)",
+      "Bash(sqlite3:*)",
+      "Bash(npm create:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(node index.js:*)",
+      "Bash(npm run dev:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\create-shortcut.ps1\")",
+      "Bash(del \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\create-shortcut.ps1\")",
+      "Bash(cmd /c del \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\create-shortcut.ps1\")",
+      "Bash(node init-db.js:*)",
+      "Bash(dir:*)",
+      "Bash(wc:*)",
+      "Bash(tasklist:*)",
+      "Bash(node:*)",
+      "Bash(curl:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx electron-builder:*)",
+      "Bash(set:*)",
+      "Bash(echo:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\frontend\\\\dist\"\" 2>/dev/null | head -20 || echo \"Frontend dist not built yet \")",
+      "Bash(grep:*)",
+      "Bash(gh:*)",
+      "Bash(where:*)",
+      "Bash(winget install:*)",
+      "Bash(git --version:*)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)",
+      "Bash(del \"\\\\?\\\\C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\backend\\\\nul\")",
+      "Bash(cmd /c \"del /f \"\"\\\\?\\\\C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\backend\\\\nul\"\"\")"
+    ]
+  }
+}

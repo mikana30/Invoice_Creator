@@ -1,0 +1,262 @@
+// Default API base for development
+let API_BASE = 'http://localhost:3001';
+
+// Initialize API with dynamic port from Electron
+export async function initializeAPI() {
+  if (window.electronAPI) {
+    try {
+      const port = await window.electronAPI.getBackendPort();
+      if (port) {
+        API_BASE = `http://localhost:${port}`;
+        console.log('API initialized with port:', port);
+      }
+    } catch (error) {
+      console.error('Failed to get backend port:', error);
+    }
+  }
+  return API_BASE;
+}
+
+export const api = {
+  // Settings
+  async getSettings() {
+    const res = await fetch(`${API_BASE}/settings`);
+    return res.json();
+  },
+
+  async updateSettings(settings) {
+    const res = await fetch(`${API_BASE}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    return res.json();
+  },
+
+  // Clients
+  async getClients() {
+    const res = await fetch(`${API_BASE}/clients`);
+    return res.json();
+  },
+
+  async searchClients(query) {
+    const res = await fetch(`${API_BASE}/clients/search?q=${encodeURIComponent(query)}`);
+    return res.json();
+  },
+
+  async createClient(client) {
+    const res = await fetch(`${API_BASE}/clients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(client),
+    });
+    return res.json();
+  },
+
+  async updateClient(id, client) {
+    const res = await fetch(`${API_BASE}/clients/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(client),
+    });
+    return res.json();
+  },
+
+  async deleteClient(id) {
+    const res = await fetch(`${API_BASE}/clients/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to delete client');
+    }
+    return res.json();
+  },
+
+  // Items
+  async getItems() {
+    const res = await fetch(`${API_BASE}/items`);
+    return res.json();
+  },
+
+  async searchItems(query) {
+    const res = await fetch(`${API_BASE}/items/search?q=${encodeURIComponent(query)}`);
+    return res.json();
+  },
+
+  async createItem(item) {
+    const res = await fetch(`${API_BASE}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to create item');
+    }
+    return res.json();
+  },
+
+  async updateItem(id, item) {
+    const res = await fetch(`${API_BASE}/items/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(item),
+    });
+    return res.json();
+  },
+
+  async deleteItem(id) {
+    const res = await fetch(`${API_BASE}/items/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to delete item');
+    }
+    return res.json();
+  },
+
+  async toggleItemActive(id, active) {
+    const res = await fetch(`${API_BASE}/items/${id}/active`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to update item status');
+    }
+    return res.json();
+  },
+
+  // Inventory Products (shared inventory)
+  async getInventoryProducts() {
+    const res = await fetch(`${API_BASE}/inventory-products`);
+    return res.json();
+  },
+
+  async createInventoryProduct(product) {
+    const res = await fetch(`${API_BASE}/inventory-products`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(product),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to create inventory product');
+    }
+    return res.json();
+  },
+
+  async updateInventoryProduct(id, product) {
+    const res = await fetch(`${API_BASE}/inventory-products/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(product),
+    });
+    return res.json();
+  },
+
+  async deleteInventoryProduct(id) {
+    const res = await fetch(`${API_BASE}/inventory-products/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to delete inventory product');
+    }
+    return res.json();
+  },
+
+  async getInventoryProductItems(id) {
+    const res = await fetch(`${API_BASE}/inventory-products/${id}/items`);
+    return res.json();
+  },
+
+  // Invoices
+  async getInvoices() {
+    const res = await fetch(`${API_BASE}/invoices`);
+    return res.json();
+  },
+
+  async getInvoice(id) {
+    const res = await fetch(`${API_BASE}/invoices/${id}`);
+    return res.json();
+  },
+
+  async createInvoice(invoice) {
+    const res = await fetch(`${API_BASE}/invoices`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(invoice),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to create invoice');
+    }
+    return res.json();
+  },
+
+  async updateInvoice(id, invoice) {
+    const res = await fetch(`${API_BASE}/invoices/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(invoice),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to update invoice');
+    }
+    return res.json();
+  },
+
+  async deleteInvoice(id) {
+    const res = await fetch(`${API_BASE}/invoices/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to delete invoice');
+    }
+    return res.json();
+  },
+
+  async updateInvoicePayment(id, { paymentStatus, amountPaid }) {
+    const res = await fetch(`${API_BASE}/invoices/${id}/payment`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentStatus, amountPaid }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to update payment');
+    }
+    return res.json();
+  },
+
+  async voidInvoice(id) {
+    const res = await fetch(`${API_BASE}/invoices/${id}/void`, {
+      method: 'PATCH',
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to void invoice');
+    }
+    return res.json();
+  },
+
+  // Full data restore
+  async restoreData(backup) {
+    const res = await fetch(`${API_BASE}/restore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(backup),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to restore data');
+    }
+    return res.json();
+  },
+};
