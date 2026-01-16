@@ -7,6 +7,7 @@ export default function ItemManager() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ name: '', price: '', cost: '', inventory: '', reorderLevel: '', baseInventoryId: '' });
+  const [components, setComponents] = useState([]); // Bill of Materials
   const [message, setMessage] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -50,14 +51,24 @@ export default function ItemManager() {
       baseInventoryId: form.baseInventoryId ? parseInt(form.baseInventoryId) : null,
     };
     try {
+      let itemId = editingId;
       if (editingId) {
         await api.updateItem(editingId, itemData);
         setMessage({ type: 'success', text: 'Item updated successfully' });
       } else {
-        await api.createItem(itemData);
+        const result = await api.createItem(itemData);
+        itemId = result.id;
         setMessage({ type: 'success', text: 'Item created successfully' });
       }
+      // Save components if any
+      if (itemId && components.length > 0) {
+        await api.updateItemComponents(itemId, components);
+      } else if (itemId) {
+        // Clear components if none specified
+        await api.updateItemComponents(itemId, []);
+      }
       setForm({ name: '', price: '', cost: '', inventory: '', reorderLevel: '', baseInventoryId: '' });
+      setComponents([]);
       setEditingId(null);
       await loadItems();
     } catch (err) {
@@ -65,7 +76,7 @@ export default function ItemManager() {
     }
   };
 
-  const handleEdit = (item) => {
+  const handleEdit = async (item) => {
     setEditingId(item.id);
     setForm({
       name: item.name,
@@ -75,6 +86,16 @@ export default function ItemManager() {
       reorderLevel: item.reorderLevel?.toString() || '',
       baseInventoryId: item.baseInventoryId?.toString() || '',
     });
+    // Load existing components
+    try {
+      const itemComponents = await api.getItemComponents(item.id);
+      setComponents(itemComponents.map(c => ({
+        inventoryProductId: c.inventoryProductId,
+        quantityNeeded: c.quantityNeeded
+      })));
+    } catch (err) {
+      setComponents([]);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -91,6 +112,22 @@ export default function ItemManager() {
   const handleCancel = () => {
     setEditingId(null);
     setForm({ name: '', price: '', cost: '', inventory: '', reorderLevel: '', baseInventoryId: '' });
+    setComponents([]);
+  };
+
+  // Component management functions
+  const addComponent = () => {
+    setComponents([...components, { inventoryProductId: '', quantityNeeded: 1 }]);
+  };
+
+  const updateComponent = (index, field, value) => {
+    const updated = [...components];
+    updated[index][field] = field === 'quantityNeeded' ? parseInt(value) || 1 : value;
+    setComponents(updated);
+  };
+
+  const removeComponent = (index) => {
+    setComponents(components.filter((_, i) => i !== index));
   };
 
   const handleToggleActive = async (item) => {
@@ -205,10 +242,13 @@ export default function ItemManager() {
                 value={form.inventory}
                 onChange={(e) => setForm({ ...form, inventory: e.target.value })}
                 placeholder="0"
-                disabled={!!form.baseInventoryId}
+                disabled={!!form.baseInventoryId || components.length > 0}
               />
               {form.baseInventoryId && (
                 <small style={{ color: '#888' }}>Disabled: using shared inventory</small>
+              )}
+              {components.length > 0 && !form.baseInventoryId && (
+                <small style={{ color: '#888' }}>Disabled: using recipe components</small>
               )}
             </div>
             <div className="form-group" style={{ flex: 1 }}>
@@ -219,13 +259,71 @@ export default function ItemManager() {
                 value={form.reorderLevel}
                 onChange={(e) => setForm({ ...form, reorderLevel: e.target.value })}
                 placeholder="0"
-                disabled={!!form.baseInventoryId}
+                disabled={!!form.baseInventoryId || components.length > 0}
               />
-              {!form.baseInventoryId && (
+              {!form.baseInventoryId && components.length === 0 && (
                 <small style={{ color: '#888' }}>Alert when stock falls below this</small>
               )}
             </div>
           </div>
+
+          {/* Recipe / Bill of Materials */}
+          <div style={{ marginTop: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <label style={{ fontWeight: '600', margin: 0 }}>Recipe / Components</label>
+              <button
+                type="button"
+                className="btn btn-sm btn-secondary"
+                onClick={addComponent}
+                disabled={!!form.baseInventoryId}
+              >
+                + Add Component
+              </button>
+            </div>
+            {form.baseInventoryId && (
+              <small style={{ color: '#888', display: 'block', marginBottom: '0.5rem' }}>
+                Cannot use recipe when linked to shared inventory
+              </small>
+            )}
+            {components.length === 0 && !form.baseInventoryId && (
+              <small style={{ color: '#888' }}>
+                Add inventory products needed to make this item (e.g., 1 wood, 1 ribbon, 1 bell)
+              </small>
+            )}
+            {components.map((comp, index) => (
+              <div key={index} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <select
+                  value={comp.inventoryProductId}
+                  onChange={(e) => updateComponent(index, 'inventoryProductId', e.target.value)}
+                  style={{ flex: 2, padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                  required
+                >
+                  <option value="">-- Select Inventory Product --</option>
+                  {inventoryProducts.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} (Qty: {product.quantity})
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="1"
+                  value={comp.quantityNeeded}
+                  onChange={(e) => updateComponent(index, 'quantityNeeded', e.target.value)}
+                  style={{ width: '80px', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                  placeholder="Qty"
+                />
+                <button
+                  type="button"
+                  className="btn btn-sm btn-danger"
+                  onClick={() => removeComponent(index)}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+
           <div className="btn-group">
             <button type="submit" className="btn btn-primary">
               {editingId ? 'Update Item' : 'Add Item'}

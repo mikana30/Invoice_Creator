@@ -58,6 +58,15 @@ async function initDb() {
       FOREIGN KEY (itemId) REFERENCES items(id)
     );
 
+    CREATE TABLE IF NOT EXISTS item_components (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      itemId INTEGER NOT NULL,
+      inventoryProductId INTEGER NOT NULL,
+      quantityNeeded INTEGER NOT NULL DEFAULT 1,
+      FOREIGN KEY (itemId) REFERENCES items(id) ON DELETE CASCADE,
+      FOREIGN KEY (inventoryProductId) REFERENCES inventory_products(id)
+    );
+
     CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       businessName TEXT DEFAULT 'Your Business Name',
@@ -87,6 +96,18 @@ async function initDb() {
       name TEXT NOT NULL UNIQUE,
       quantity INTEGER DEFAULT 0,
       reorderLevel INTEGER DEFAULT 0
+    );
+  `);
+
+  // Create item_components table if it doesn't exist (for existing databases)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS item_components (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      itemId INTEGER NOT NULL,
+      inventoryProductId INTEGER NOT NULL,
+      quantityNeeded INTEGER NOT NULL DEFAULT 1,
+      FOREIGN KEY (itemId) REFERENCES items(id) ON DELETE CASCADE,
+      FOREIGN KEY (inventoryProductId) REFERENCES inventory_products(id)
     );
   `);
 

@@ -289,6 +289,60 @@ app.get('/inventory-products/:id/items', async (req, res) => {
   res.json(items);
 });
 
+// Item Components routes (Bill of Materials / Recipes)
+app.get('/item-components', async (req, res) => {
+  const db = await openDb();
+  const components = await db.all(`
+    SELECT ic.*, ip.name as inventoryProductName, ip.quantity as availableQty, i.name as itemName
+    FROM item_components ic
+    JOIN inventory_products ip ON ic.inventoryProductId = ip.id
+    JOIN items i ON ic.itemId = i.id
+  `);
+  res.json(components);
+});
+
+app.get('/items/:id/components', async (req, res) => {
+  const { id } = req.params;
+  const db = await openDb();
+  const components = await db.all(`
+    SELECT ic.*, ip.name as inventoryProductName, ip.quantity as availableQty
+    FROM item_components ic
+    JOIN inventory_products ip ON ic.inventoryProductId = ip.id
+    WHERE ic.itemId = ?
+  `, [id]);
+  res.json(components);
+});
+
+app.put('/items/:id/components', async (req, res) => {
+  const { components } = req.body; // Array of { inventoryProductId, quantityNeeded }
+  const { id } = req.params;
+  const db = await openDb();
+
+  try {
+    await db.run('BEGIN IMMEDIATE');
+
+    // Delete existing components for this item
+    await db.run('DELETE FROM item_components WHERE itemId = ?', [id]);
+
+    // Insert new components
+    for (const comp of components || []) {
+      if (comp.inventoryProductId && comp.quantityNeeded > 0) {
+        await db.run(
+          'INSERT INTO item_components (itemId, inventoryProductId, quantityNeeded) VALUES (?, ?, ?)',
+          [id, comp.inventoryProductId, comp.quantityNeeded]
+        );
+      }
+    }
+
+    await db.run('COMMIT');
+    res.json({ message: 'Components updated' });
+  } catch (error) {
+    await db.run('ROLLBACK');
+    console.error('Error updating components:', error);
+    res.status(500).json({ message: 'Failed to update components' });
+  }
+});
+
 // Invoice routes
 app.get('/invoices', async (req, res) => {
   const db = await openDb();
@@ -341,7 +395,21 @@ app.post('/invoices', async (req, res) => {
         const itemRecord = await db.get('SELECT id, name, inventory, baseInventoryId FROM items WHERE id = ?', [item.itemId]);
         if (!itemRecord) continue;
 
-        if (itemRecord.baseInventoryId) {
+        // Check for recipe components first
+        const components = await db.all('SELECT ic.*, ip.name as productName, ip.quantity as availableQty FROM item_components ic JOIN inventory_products ip ON ic.inventoryProductId = ip.id WHERE ic.itemId = ?', [item.itemId]);
+
+        if (components.length > 0) {
+          // Item has recipe - check each component's inventory
+          for (const comp of components) {
+            const neededQty = comp.quantityNeeded * item.quantity;
+            if (comp.availableQty < neededQty) {
+              await db.run('ROLLBACK');
+              return res.status(400).json({
+                message: `Insufficient inventory for "${itemRecord.name}". Need ${neededQty} of "${comp.productName}" but only ${comp.availableQty} available.`
+              });
+            }
+          }
+        } else if (itemRecord.baseInventoryId) {
           const invProduct = await db.get('SELECT name, quantity FROM inventory_products WHERE id = ?', [itemRecord.baseInventoryId]);
           if (invProduct && invProduct.quantity < item.quantity) {
             await db.run('ROLLBACK');
@@ -393,10 +461,20 @@ app.post('/invoices', async (req, res) => {
           [invoiceId, item.itemId, item.quantity, item.price, item.taxExempt ? 1 : 0]
         );
 
-        // Get item to check if it uses shared inventory
+        // Get item to check if it uses shared inventory or has recipe components
         const itemRecord = await db.get('SELECT baseInventoryId FROM items WHERE id = ?', [item.itemId]);
+        const components = await db.all('SELECT * FROM item_components WHERE itemId = ?', [item.itemId]);
 
-        if (itemRecord && itemRecord.baseInventoryId) {
+        if (components.length > 0) {
+          // Decrement each component's inventory
+          for (const comp of components) {
+            const decrementQty = comp.quantityNeeded * item.quantity;
+            await db.run(
+              'UPDATE inventory_products SET quantity = quantity - ? WHERE id = ?',
+              [decrementQty, comp.inventoryProductId]
+            );
+          }
+        } else if (itemRecord && itemRecord.baseInventoryId) {
           // Decrement shared inventory
           await db.run(
             'UPDATE inventory_products SET quantity = quantity - ? WHERE id = ?',
@@ -661,7 +739,18 @@ app.patch('/invoices/:id/void', async (req, res) => {
       const items = await db.all('SELECT itemId, quantity FROM invoice_items WHERE invoiceId = ?', [id]);
       for (const item of items) {
         const itemRecord = await db.get('SELECT baseInventoryId FROM items WHERE id = ?', [item.itemId]);
-        if (itemRecord && itemRecord.baseInventoryId) {
+        const components = await db.all('SELECT * FROM item_components WHERE itemId = ?', [item.itemId]);
+
+        if (components.length > 0) {
+          // Restore each component's inventory
+          for (const comp of components) {
+            const restoreQty = comp.quantityNeeded * item.quantity;
+            await db.run(
+              'UPDATE inventory_products SET quantity = quantity + ? WHERE id = ?',
+              [restoreQty, comp.inventoryProductId]
+            );
+          }
+        } else if (itemRecord && itemRecord.baseInventoryId) {
           await db.run(
             'UPDATE inventory_products SET quantity = quantity + ? WHERE id = ?',
             [item.quantity, itemRecord.baseInventoryId]
@@ -712,7 +801,18 @@ app.delete('/invoices/:id', async (req, res) => {
         const items = await db.all('SELECT itemId, quantity FROM invoice_items WHERE invoiceId = ?', [id]);
         for (const item of items) {
           const itemRecord = await db.get('SELECT baseInventoryId FROM items WHERE id = ?', [item.itemId]);
-          if (itemRecord && itemRecord.baseInventoryId) {
+          const components = await db.all('SELECT * FROM item_components WHERE itemId = ?', [item.itemId]);
+
+          if (components.length > 0) {
+            // Restore each component's inventory
+            for (const comp of components) {
+              const restoreQty = comp.quantityNeeded * item.quantity;
+              await db.run(
+                'UPDATE inventory_products SET quantity = quantity + ? WHERE id = ?',
+                [restoreQty, comp.inventoryProductId]
+              );
+            }
+          } else if (itemRecord && itemRecord.baseInventoryId) {
             await db.run(
               'UPDATE inventory_products SET quantity = quantity + ? WHERE id = ?',
               [item.quantity, itemRecord.baseInventoryId]
@@ -839,6 +939,12 @@ app.post('/restore', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
-});
+// Only start server if not in test mode
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
+  });
+}
+
+// Export app for testing
+module.exports = { app };

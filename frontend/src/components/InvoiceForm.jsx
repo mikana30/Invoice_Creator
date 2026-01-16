@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../api';
+import { QuickAddClientModal, QuickAddItemModal } from './QuickAddModals';
 
 // Round to 2 decimal places to avoid floating point issues
 function roundMoney(value) {
@@ -39,6 +40,12 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Quick-add modal state
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [showItemModal, setShowItemModal] = useState(false);
+  const [itemModalIndex, setItemModalIndex] = useState(null);
+  const [itemModalInitialPrice, setItemModalInitialPrice] = useState(0);
 
   // Track unsaved changes
   useEffect(() => {
@@ -127,6 +134,39 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
     setShowClientDropdown(false);
   };
 
+  // Quick-add client callback
+  const handleClientCreated = (newClient) => {
+    setClients([...clients, newClient]);
+    setSelectedClientId(newClient.id);
+    setClientSearch(newClient.name);
+    setShowClientDropdown(false);
+    setShowClientModal(false);
+    setHasUnsavedChanges(true);
+  };
+
+  // Quick-add item callback
+  const handleItemCreated = (newItem) => {
+    if (itemModalIndex !== null) {
+      const newItems = [...invoiceItems];
+      newItems[itemModalIndex].itemId = newItem.id;
+      newItems[itemModalIndex].name = newItem.name;
+      newItems[itemModalIndex].price = newItem.price;
+      newItems[itemModalIndex].cost = newItem.cost || 0;
+      newItems[itemModalIndex].showSuggestions = false;
+      setInvoiceItems(newItems);
+      setHasUnsavedChanges(true);
+    }
+    setShowItemModal(false);
+    setItemModalIndex(null);
+  };
+
+  // Open quick-add item modal for a specific row
+  const openItemModal = (index) => {
+    setItemModalIndex(index);
+    setItemModalInitialPrice(invoiceItems[index].price || 0);
+    setShowItemModal(true);
+  };
+
   // Debounced search function
   const searchItems = useCallback(async (index, value) => {
     if (value.length > 0) {
@@ -136,12 +176,20 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
           const newItems = [...prevItems];
           if (newItems[index]) {
             newItems[index].suggestions = suggestions;
-            newItems[index].showSuggestions = suggestions.length > 0;
+            // Always show dropdown when there's text (so user can see "Create new" option)
+            newItems[index].showSuggestions = true;
           }
           return newItems;
         });
       } catch (err) {
-        // Ignore search errors
+        // Ignore search errors - still show dropdown for "Create new" option
+        setInvoiceItems(prevItems => {
+          const newItems = [...prevItems];
+          if (newItems[index]) {
+            newItems[index].showSuggestions = true;
+          }
+          return newItems;
+        });
       }
     }
   }, []);
@@ -361,7 +409,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
               placeholder="Search for a client..."
               required
             />
-            {showClientDropdown && clientSearch && filteredClients.length > 0 && (
+            {showClientDropdown && clientSearch && (
               <div className="autocomplete-dropdown">
                 {filteredClients.map((client) => {
                   const addressParts = [client.street, client.city, client.state].filter(Boolean);
@@ -379,6 +427,15 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
                     </div>
                   );
                 })}
+                {/* Create New Client option */}
+                <div
+                  className="autocomplete-item"
+                  onClick={() => setShowClientModal(true)}
+                  style={{ borderTop: filteredClients.length > 0 ? '1px solid #eee' : 'none', color: '#3498db' }}
+                >
+                  <strong>+ Create "{clientSearch}"</strong>
+                  <small>Add as a new client</small>
+                </div>
               </div>
             )}
           </div>
@@ -450,7 +507,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
                   placeholder="Type item name..."
                   required
                 />
-                {item.showSuggestions && item.suggestions.length > 0 && (
+                {item.showSuggestions && (
                   <div className="autocomplete-dropdown">
                     {item.suggestions.map((suggestion) => (
                       <div
@@ -462,6 +519,17 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
                         <small>${parseFloat(suggestion.price).toFixed(2)}</small>
                       </div>
                     ))}
+                    {/* Create New Item option */}
+                    {item.name && (
+                      <div
+                        className="autocomplete-item"
+                        onClick={() => openItemModal(index)}
+                        style={{ borderTop: item.suggestions.length > 0 ? '1px solid #eee' : 'none', color: '#3498db' }}
+                      >
+                        <strong>+ Create "{item.name}"</strong>
+                        <small>Add as a new item with inventory/recipe</small>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -559,6 +627,27 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
           )}
         </div>
       </form>
+
+      {/* Quick-add modals */}
+      {showClientModal && (
+        <QuickAddClientModal
+          initialName={clientSearch}
+          onSave={handleClientCreated}
+          onClose={() => setShowClientModal(false)}
+        />
+      )}
+
+      {showItemModal && itemModalIndex !== null && (
+        <QuickAddItemModal
+          initialName={invoiceItems[itemModalIndex]?.name || ''}
+          initialPrice={itemModalInitialPrice}
+          onSave={handleItemCreated}
+          onClose={() => {
+            setShowItemModal(false);
+            setItemModalIndex(null);
+          }}
+        />
+      )}
     </div>
   );
 }

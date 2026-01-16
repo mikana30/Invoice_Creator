@@ -2,6 +2,18 @@
 
 A full-stack invoice management application for small businesses/freelancers.
 
+## Current Goals
+
+- [x] **Goal #1:** Add stats pane in navbar, LEFT of Help button, showing: invoices created, total $ billed
+- [x] **Goal #2:** Rename Help button to "Feature Request/Support Development" (or similar)
+- [x] **Goal #3:** Use frontend-design skill to make UI more engaging, add animations to Support Dev button
+- [x] **Goal #4:** New DB table `item_components` (item_id, inventory_product_id, quantity_needed) for Bill of Materials
+- [x] **Goal #5:** UI to define "recipe" when creating/editing items (select inventory products + quantities)
+- [x] **Goal #6:** Invoice creation decrements all component inventories when item with recipe is sold
+- [x] **Goal #7:** Low stock alerts based on what you can actually build (min of components)
+- [x] **Goal #8:** Inline "quick add" modals from Invoice form - when typing a name that doesn't exist for Client, Item, or Inventory Product, offer to create it on the spot (skippable, full form including recipe for items)
+- [x] **Goal #9:** Report Templates - Pre-built exportable reports (Profit Analysis, Inventory Value, Client Revenue Summary, Tax Report, Sales by Item) with date range selection
+
 ## Architecture
 
 | Layer    | Technology        | Port |
@@ -184,43 +196,56 @@ React component state with props. Key patterns:
 
 ## Electron Distribution
 
+**GitHub Repository:** https://github.com/mikana30/Invoice_Creator
+**Latest Release:** https://github.com/mikana30/Invoice_Creator/releases/tag/v1.0.0
+**Support Email:** bluelinescannables@gmail.com
+
 ### Building the Installer
 ```bash
 npm install           # Install Electron dependencies
 npm run build         # Build frontend and create Windows installer
 ```
-Output: `dist/Invoice Creator Setup.exe`
+Output: `dist/Invoice Creator Setup.exe` (~85MB)
 
 ### License System
 - Uses Ed25519 cryptographic signatures
 - Machine fingerprinting ties licenses to specific computers
 - 3-use grace period when hardware changes
+- Keys are generated and public key is configured in `electron/license/validator.js`
 
-**First-time setup:**
+**First-time setup (already done):**
 ```bash
 node tools/license-generator.js --generate-keys
-# Copy the public key to electron/license/validator.js
-# Keep tools/keys/private.pem SECRET!
+# Public key is now in electron/license/validator.js
+# Private key is in tools/keys/private.pem - NEVER commit this!
 ```
 
 **Generate customer license:**
 ```bash
-node tools/license-generator.js --create
+node tools/license-generator.js --create       # Interactive mode
+node tools/license-generator.js --quick        # Quick mode (90-day license)
 ```
 
 ### Update Checker
 - Checks GitHub Releases API on app launch
 - Compares semantic versions
 - Shows banner notification with download link
-- Configure in `electron/updater.js` (GITHUB_OWNER, GITHUB_REPO)
+- Configured for: `mikana30/Invoice_Creator`
 
 ### Support System
 - Help button in nav opens SupportForm
-- Uses mailto: links (opens user's email client)
+- Uses mailto: links to bluelinescannables@gmail.com
 - Auto-includes app version and OS info
 
 ### Etsy Distribution
-1. Host installer on GitHub Releases (Etsy has 20MB limit)
-2. Sell license keys on Etsy
+1. Installer hosted at: https://github.com/mikana30/Invoice_Creator/releases
+2. Sell license keys on Etsy: https://www.etsy.com/shop/BlueLineScannables
 3. Customer receives: License key + download link
-4. Generate keys with: `node tools/license-generator.js --create`
+4. Generate keys with: `node tools/license-generator.js --quick`
+
+### Creating a New Release
+```bash
+git tag v1.x.x
+git push origin v1.x.x
+gh release create v1.x.x "dist/Invoice Creator Setup.exe" --title "v1.x.x" --notes "Release notes here"
+```

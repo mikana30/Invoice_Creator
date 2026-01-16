@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 import Dashboard from './components/Dashboard';
 import ClientManager from './components/ClientManager';
@@ -19,6 +19,28 @@ function App() {
   const [viewingInvoiceId, setViewingInvoiceId] = useState(null);
   const [invoiceListKey, setInvoiceListKey] = useState(0);
   const [showSupportForm, setShowSupportForm] = useState(false);
+  const [navStats, setNavStats] = useState({ invoiceCount: 0, totalBilled: 0 });
+
+  useEffect(() => {
+    loadNavStats();
+  }, [invoiceListKey]);
+
+  const loadNavStats = async () => {
+    try {
+      const invoices = await api.getInvoices();
+      let totalBilled = 0;
+      let count = 0;
+      invoices.forEach(inv => {
+        if (inv.paymentStatus !== 'voided') {
+          count++;
+          totalBilled += parseFloat(inv.total) || 0;
+        }
+      });
+      setNavStats({ invoiceCount: count, totalBilled: Math.round(totalBilled * 100) / 100 });
+    } catch (err) {
+      console.error('Failed to load nav stats', err);
+    }
+  };
 
   const handleEditInvoice = async (invoiceId) => {
     try {
@@ -157,12 +179,17 @@ function App() {
         >
           Export
         </button>
+        <div className="nav-stats">
+          <span className="nav-stat">{navStats.invoiceCount} invoices</span>
+          <span className="nav-stat-divider">|</span>
+          <span className="nav-stat">${navStats.totalBilled.toLocaleString('en-US', { minimumFractionDigits: 2 })} billed</span>
+        </div>
         <button
-          className="help-btn"
+          className="support-dev-btn"
           onClick={() => setShowSupportForm(true)}
-          title="Get Help"
+          title="Request Features & Support Development"
         >
-          Help
+          Support Dev
         </button>
       </nav>
 

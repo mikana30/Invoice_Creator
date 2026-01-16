@@ -24,10 +24,11 @@ export default function Dashboard() {
 
   const loadMetrics = async () => {
     try {
-      const [invoices, items, inventoryProducts] = await Promise.all([
+      const [invoices, items, inventoryProducts, allComponents] = await Promise.all([
         api.getInvoices(),
         api.getItems(),
         api.getInventoryProducts(),
+        api.getAllItemComponents(),
       ]);
 
       const now = new Date();
@@ -69,11 +70,40 @@ export default function Dashboard() {
         }
       });
 
-      // Low stock items (including shared inventory)
+      // Low stock items (including shared inventory and recipe items)
       const lowStockItems = [];
 
+      // Group components by itemId
+      const componentsByItem = {};
+      allComponents.forEach(comp => {
+        if (!componentsByItem[comp.itemId]) {
+          componentsByItem[comp.itemId] = [];
+        }
+        componentsByItem[comp.itemId].push(comp);
+      });
+
       items.forEach(item => {
-        if (!item.baseInventoryId) {
+        const itemComponents = componentsByItem[item.id];
+
+        if (itemComponents && itemComponents.length > 0) {
+          // Recipe item - calculate how many can be built
+          let buildable = Infinity;
+          itemComponents.forEach(comp => {
+            const canBuild = Math.floor(comp.availableQty / comp.quantityNeeded);
+            buildable = Math.min(buildable, canBuild);
+          });
+          buildable = buildable === Infinity ? 0 : buildable;
+
+          // Alert if can build 5 or fewer
+          if (buildable <= 5) {
+            lowStockItems.push({
+              name: `${item.name} (Recipe)`,
+              quantity: buildable,
+              reorderLevel: 'Can build',
+              isRecipe: true,
+            });
+          }
+        } else if (!item.baseInventoryId) {
           const inventory = parseInt(item.inventory) || 0;
           const reorderLevel = parseInt(item.reorderLevel) || 0;
           if (reorderLevel > 0 && inventory <= reorderLevel) {

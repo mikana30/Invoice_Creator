@@ -130,6 +130,30 @@ export const api = {
     return res.json();
   },
 
+  // Item Components (Bill of Materials)
+  async getAllItemComponents() {
+    const res = await fetch(`${API_BASE}/item-components`);
+    return res.json();
+  },
+
+  async getItemComponents(itemId) {
+    const res = await fetch(`${API_BASE}/items/${itemId}/components`);
+    return res.json();
+  },
+
+  async updateItemComponents(itemId, components) {
+    const res = await fetch(`${API_BASE}/items/${itemId}/components`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ components }),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to update components');
+    }
+    return res.json();
+  },
+
   // Inventory Products (shared inventory)
   async getInventoryProducts() {
     const res = await fetch(`${API_BASE}/inventory-products`);
