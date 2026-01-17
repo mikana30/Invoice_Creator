@@ -52,6 +52,17 @@
       "target": "nsis",
       "signAndEditExecutable": false
     },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.business"
+    },
+    "dmg": {
+      "title": "Invoice Creator",
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
