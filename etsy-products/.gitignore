@@ -1,0 +1,3 @@
+# Don't commit license keys or the PDF (contains your activation URL)
+*.csv
+*.pdf
