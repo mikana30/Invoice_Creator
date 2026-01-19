@@ -5,9 +5,9 @@
  * Creates a professional PDF digital download for Etsy.
  * Contains:
  * - Thank you message
- * - Activation URL (with QR code)
- * - Instructions for redeeming
- * - System requirements
+ * - Download links (Windows & Mac)
+ * - QR code to download page
+ * - Installation instructions
  *
  * Usage:
  *   node tools/generate-etsy-pdf.js
@@ -19,9 +19,9 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuration
-const ACTIVATION_URL = 'https://mikana30.github.io/Invoice_Creator/';
+const DOWNLOAD_URL = 'https://github.com/mikana30/Invoice_Creator/releases/latest';
 const OUTPUT_DIR = path.join(__dirname, '..', 'etsy-products');
-const OUTPUT_FILE = path.join(OUTPUT_DIR, 'Invoice_Creator_License.pdf');
+const OUTPUT_FILE = path.join(OUTPUT_DIR, 'Invoice_Creator_Download.pdf');
 
 // Colors (matching the app branding)
 const COLORS = {
@@ -39,7 +39,7 @@ async function generatePDF() {
   }
 
   // Generate QR code as data URL
-  const qrDataUrl = await QRCode.toDataURL(ACTIVATION_URL, {
+  const qrDataUrl = await QRCode.toDataURL(DOWNLOAD_URL, {
     width: 200,
     margin: 2,
     color: {
@@ -95,7 +95,7 @@ async function generatePDF() {
 
   doc.moveDown(2);
 
-  // Activation box
+  // Download box
   const boxTop = doc.y;
   const boxHeight = 180;
 
@@ -107,14 +107,14 @@ async function generatePDF() {
   doc.fontSize(14)
      .font('Helvetica-Bold')
      .fillColor(COLORS.secondary)
-     .text('Activation URL:', { align: 'center' });
+     .text('Download Page:', { align: 'center' });
 
   doc.moveDown(0.5);
 
-  doc.fontSize(16)
+  doc.fontSize(14)
      .font('Helvetica-Bold')
      .fillColor(COLORS.primary)
-     .text(ACTIVATION_URL, { align: 'center', link: ACTIVATION_URL });
+     .text(DOWNLOAD_URL, { align: 'center', link: DOWNLOAD_URL });
 
   doc.moveDown(1);
 
@@ -125,22 +125,18 @@ async function generatePDF() {
 
   doc.y = boxTop + boxHeight + 30;
 
-  // Important notice
+  // Tip box
   doc.roundedRect(doc.page.margins.left, doc.y, pageWidth, 50, 8)
-     .fill('#fff3cd');
+     .fill('#d4edda');
 
-  doc.y += 15;
+  doc.y += 18;
 
   doc.fontSize(11)
      .font('Helvetica-Bold')
-     .fillColor('#856404')
-     .text('Important: Have your Etsy order number ready!', { align: 'center' });
+     .fillColor('#155724')
+     .text('Scan the QR code or click the link above to download!', { align: 'center' });
 
-  doc.fontSize(10)
-     .font('Helvetica')
-     .text('You\'ll need it to activate your license. Find it in your Etsy purchase confirmation.', { align: 'center' });
-
-  doc.y += 30;
+  doc.y += 25;
 
   // Steps
   doc.moveDown(1);
@@ -148,16 +144,14 @@ async function generatePDF() {
   doc.fontSize(16)
      .font('Helvetica-Bold')
      .fillColor(COLORS.secondary)
-     .text('How to Activate', { align: 'center' });
+     .text('Installation Instructions', { align: 'center' });
 
   doc.moveDown(1);
 
   const steps = [
-    { num: '1', text: 'Visit the activation URL above (or scan the QR code)' },
-    { num: '2', text: 'Enter your Etsy order number when prompted' },
-    { num: '3', text: 'Your unique license key will be displayed' },
-    { num: '4', text: 'Download Invoice Creator for Windows or Mac' },
-    { num: '5', text: 'Enter your license key when you first open the app' }
+    { num: '1', text: 'Click the download link above for your operating system' },
+    { num: '2', text: 'Run the installer and follow the prompts' },
+    { num: '3', text: 'Open Invoice Creator and start creating invoices!' }
   ];
 
   doc.fontSize(11)
@@ -215,12 +209,12 @@ async function generatePDF() {
   // Wait for write to complete
   return new Promise((resolve, reject) => {
     writeStream.on('finish', () => {
-      console.log('\n✓ PDF generated successfully!');
+      console.log('\nPDF generated successfully!');
       console.log('\nOutput file:', OUTPUT_FILE);
       console.log('\nNext steps:');
-      console.log('1. Open the PDF and verify it looks correct');
-      console.log('2. Upload it to your Etsy listing as a digital download');
-      console.log('3. Done! The same PDF works for unlimited sales.');
+      console.log('1. Upload the new installer to GitHub releases');
+      console.log('2. Upload this PDF to your Etsy listing');
+      console.log('3. Done! Fully passive - no license keys needed.');
       resolve();
     });
     writeStream.on('error', reject);

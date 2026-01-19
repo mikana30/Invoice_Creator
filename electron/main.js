@@ -173,13 +173,7 @@ app.whenReady().then(async () => {
       fs.mkdirSync(userDataPath, { recursive: true });
     }
 
-    // Validate license first
-    const licenseResult = await validateLicense();
-
-    if (!licenseResult.valid) {
-      createLicenseWindow();
-      return;
-    }
+    // License check removed - app is free to use
 
     // Get available port and start backend
     backendPort = await getAvailablePort(3001);
