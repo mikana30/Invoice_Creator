@@ -6,6 +6,11 @@ let dbInstance = null;
 
 // Get database path - uses userData in Electron, local in development
 function getDbPath() {
+  // Use test database in test environment
+  if (process.env.TEST_DB_PATH) {
+    return process.env.TEST_DB_PATH;
+  }
+
   if (process.env.ELECTRON_USER_DATA) {
     // Running in Electron - store in user data folder
     return path.join(process.env.ELECTRON_USER_DATA, 'database.db');

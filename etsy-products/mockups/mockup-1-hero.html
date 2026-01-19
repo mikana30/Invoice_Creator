@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=2000, height=1500">
+  <title>Invoice Creator - Hero</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 2000px;
+      height: 1500px;
+      font-family: 'Outfit', sans-serif;
+      background: linear-gradient(135deg, #0a0e17 0%, #1a1f2e 50%, #0f1824 100%);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Ambient glow effects */
+    .glow-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.4;
+    }
+
+    .glow-1 {
+      width: 600px;
+      height: 600px;
+      background: #3498db;
+      top: -200px;
+      right: 200px;
+    }
+
+    .glow-2 {
+      width: 400px;
+      height: 400px;
+      background: #27ae60;
+      bottom: 100px;
+      left: -100px;
+    }
+
+    .glow-3 {
+      width: 300px;
+      height: 300px;
+      background: #9b59b6;
+      bottom: 300px;
+      right: -50px;
+      opacity: 0.2;
+    }
+
+    /* Grid pattern overlay */
+    .grid-pattern {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      padding: 80px;
+    }
+
+    .left-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-right: 60px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(52, 152, 219, 0.15);
+      border: 1px solid rgba(52, 152, 219, 0.3);
+      padding: 10px 20px;
+      border-radius: 50px;
+      color: #3498db;
+      font-size: 18px;
+      font-weight: 500;
+      width: fit-content;
+      margin-bottom: 30px;
+    }
+
+    .badge::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: #3498db;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    h1 {
+      font-size: 92px;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.05;
+      margin-bottom: 30px;
+      letter-spacing: -2px;
+    }
+
+    h1 span {
+      background: linear-gradient(135deg, #3498db, #27ae60);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 26px;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.6;
+      margin-bottom: 50px;
+      max-width: 550px;
+    }
+
+    .features {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .feature-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 16px 28px;
+      border-radius: 60px;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 500;
+      backdrop-filter: blur(10px);
+    }
+
+    .feature-pill svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .feature-pill.green svg { color: #27ae60; }
+    .feature-pill.blue svg { color: #3498db; }
+    .feature-pill.orange svg { color: #f39c12; }
+
+    .right-content {
+      flex: 1.2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .app-window {
+      width: 900px;
+      background: linear-gradient(180deg, #1e2538 0%, #151a28 100%);
+      border-radius: 20px;
+      box-shadow:
+        0 50px 100px rgba(0,0,0,0.5),
+        0 0 0 1px rgba(255,255,255,0.1),
+        inset 0 1px 0 rgba(255,255,255,0.1);
+      overflow: hidden;
+      transform: perspective(1000px) rotateY(-5deg) rotateX(2deg);
+    }
+
+    .window-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 18px 24px;
+      background: rgba(0,0,0,0.3);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .window-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+    }
+
+    .window-dot.red { background: #ff5f57; }
+    .window-dot.yellow { background: #febc2e; }
+    .window-dot.green { background: #28c840; }
+
+    .window-title {
+      flex: 1;
+      text-align: center;
+      color: rgba(255,255,255,0.5);
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .app-content {
+      padding: 30px;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .stat-label {
+      color: rgba(255,255,255,0.5);
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .stat-value.green { color: #27ae60; }
+    .stat-value.blue { color: #3498db; }
+    .stat-value.orange { color: #f39c12; }
+
+    .invoice-preview {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .invoice-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .invoice-title {
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .invoice-status {
+      background: rgba(39, 174, 96, 0.2);
+      color: #27ae60;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .invoice-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.7);
+      font-size: 15px;
+    }
+
+    .invoice-row:last-child {
+      border-bottom: none;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* Floating elements */
+    .floating-card {
+      position: absolute;
+      background: linear-gradient(135deg, #1e2538, #252d42);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+
+    .floating-card.top-right {
+      top: 50px;
+      right: 30px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .floating-icon {
+      width: 44px;
+      height: 44px;
+      background: rgba(39, 174, 96, 0.2);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #27ae60;
+    }
+
+    .floating-text {
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+    }
+
+    .floating-value {
+      color: #27ae60;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .floating-card.bottom-left {
+      bottom: 80px;
+      left: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .check-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #27ae60, #2ecc71);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .floating-card.bottom-left .text {
+      color: #fff;
+      font-weight: 500;
+    }
+
+    .floating-card.bottom-left .subtext {
+      color: rgba(255,255,255,0.5);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="glow-orb glow-1"></div>
+  <div class="glow-orb glow-2"></div>
+  <div class="glow-orb glow-3"></div>
+  <div class="grid-pattern"></div>
+
+  <div class="container">
+    <div class="left-content">
+      <div class="badge">Desktop Software for Windows & Mac</div>
+      <h1>Invoice<br><span>Creator</span></h1>
+      <p class="subtitle">Professional invoicing software that tracks inventory, calculates profit, and remembers everything. One price. Forever yours.</p>
+
+      <div class="features">
+        <div class="feature-pill green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          No Subscription
+        </div>
+        <div class="feature-pill blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          Works Offline
+        </div>
+        <div class="feature-pill orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          Recipe Tracking
+        </div>
+      </div>
+    </div>
+
+    <div class="right-content">
+      <div class="app-window">
+        <div class="window-header">
+          <div class="window-dot red"></div>
+          <div class="window-dot yellow"></div>
+          <div class="window-dot green"></div>
+          <div class="window-title">Invoice Creator</div>
+        </div>
+        <div class="app-content">
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-label">This Month</div>
+              <div class="stat-value green">$12,450</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Unpaid</div>
+              <div class="stat-value orange">$2,180</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Invoices</div>
+              <div class="stat-value blue">47</div>
+            </div>
+          </div>
+          <div class="invoice-preview">
+            <div class="invoice-header">
+              <div class="invoice-title">INV-2025-042</div>
+              <div class="invoice-status">Paid</div>
+            </div>
+            <div class="invoice-row">
+              <span>Custom Logo Design</span>
+              <span>$800.00</span>
+            </div>
+            <div class="invoice-row">
+              <span>Brand Guidelines PDF</span>
+              <span>$350.00</span>
+            </div>
+            <div class="invoice-row">
+              <span>Total</span>
+              <span>$1,150.00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="floating-card top-right">
+        <div class="floating-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+            <polyline points="17 6 23 6 23 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="floating-text">Profit This Month</div>
+          <div class="floating-value">+$8,240</div>
+        </div>
+      </div>
+
+      <div class="floating-card bottom-left">
+        <div class="check-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="text">Inventory Updated</div>
+          <div class="subtext">-3 items automatically</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

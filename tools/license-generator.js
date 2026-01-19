@@ -91,12 +91,22 @@ function createLicenseKey(options = {}) {
 
   const privateKey = fs.readFileSync(PRIVATE_KEY_PATH, 'utf8');
 
-  // Build payload
+  // Generate unique random bytes for the key (makes each key visually unique)
+  const randomBytes = crypto.randomBytes(12);
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  // Build payload buffer: 1 byte version + 4 bytes timestamp + 12 bytes random
+  const payloadBuffer = Buffer.alloc(17);
+  payloadBuffer.writeUInt8(1, 0);  // Version
+  payloadBuffer.writeUInt32BE(timestamp, 1);  // Timestamp
+  randomBytes.copy(payloadBuffer, 5);  // Random bytes
+
+  // Legacy payload for logging only
   const payload = {
     v: 1,                          // Version
     p: 'invoice-creator',          // Product ID
     t: options.type || 'perpetual', // License type
-    c: Math.floor(Date.now() / 1000), // Created timestamp
+    c: timestamp,                  // Created timestamp
     e: options.expiry || null,     // Expiry (null = never)
   };
 
@@ -105,13 +115,11 @@ function createLicenseKey(options = {}) {
     payload.m = options.machineId;
   }
 
-  // Convert payload to JSON and then to Base32
-  const payloadJson = JSON.stringify(payload);
-  const payloadBuffer = Buffer.from(payloadJson, 'utf8');
+  // Encode the unique payload buffer to Base32
   const payloadBase32 = base32Encode(payloadBuffer);
 
-  // Pad to 25 characters for consistent key length
-  const paddedKey = payloadBase32.padEnd(25, '0').substring(0, 25);
+  // Use 25 characters for the key (covers all 17 bytes = 28 base32 chars, we use 25)
+  const paddedKey = payloadBase32.substring(0, 25);
   const formattedKey = formatKey(paddedKey);
 
   // Sign the key part (Ed25519 uses crypto.sign directly)

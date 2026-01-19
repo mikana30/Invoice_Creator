@@ -18,7 +18,7 @@
  */
 
 // Configuration - Update with your spreadsheet ID
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
+const SPREADSHEET_ID = '1hqbk0UKsTPnVIkU_NzFGhYXNCX2aZ4qq4zWaWziv7n8';
 
 /**
  * Handle POST requests from the landing page

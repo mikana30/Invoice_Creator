@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=2000, height=1500">
+  <title>Invoice Creator - Recipe Feature</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 2000px;
+      height: 1500px;
+      font-family: 'Outfit', sans-serif;
+      background: linear-gradient(145deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .glow-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(150px);
+    }
+
+    .glow-1 {
+      width: 700px;
+      height: 700px;
+      background: rgba(249, 115, 22, 0.15);
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .glow-2 {
+      width: 400px;
+      height: 400px;
+      background: rgba(39, 174, 96, 0.2);
+      bottom: 0;
+      right: 200px;
+    }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 70px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+
+    .feature-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(249, 115, 22, 0.1));
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      padding: 12px 24px;
+      border-radius: 50px;
+      color: #f97316;
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 25px;
+    }
+
+    .feature-badge svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    h1 {
+      font-size: 72px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 20px;
+      letter-spacing: -2px;
+    }
+
+    h1 span {
+      color: #f97316;
+    }
+
+    .subtitle {
+      font-size: 24px;
+      color: rgba(255,255,255,0.5);
+      max-width: 700px;
+    }
+
+    .demo-area {
+      display: flex;
+      align-items: center;
+      gap: 60px;
+      flex: 1;
+    }
+
+    .product-card {
+      width: 420px;
+      background: linear-gradient(180deg, #1c2128 0%, #161b22 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 24px;
+      padding: 40px;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.4);
+    }
+
+    .product-image {
+      width: 100%;
+      height: 220px;
+      background: linear-gradient(135deg, #2d333b 0%, #22272e 100%);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 30px;
+      font-size: 80px;
+    }
+
+    .product-name {
+      font-size: 32px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .product-price {
+      font-size: 42px;
+      font-weight: 700;
+      color: #27ae60;
+      margin-bottom: 20px;
+    }
+
+    .product-meta {
+      display: flex;
+      gap: 20px;
+    }
+
+    .meta-item {
+      background: rgba(255,255,255,0.05);
+      padding: 12px 20px;
+      border-radius: 12px;
+    }
+
+    .meta-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .meta-value {
+      font-size: 20px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .arrow-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .arrow-line {
+      width: 120px;
+      height: 4px;
+      background: linear-gradient(90deg, #f97316, #27ae60);
+      border-radius: 2px;
+      position: relative;
+    }
+
+    .arrow-line::after {
+      content: '';
+      position: absolute;
+      right: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-left: 16px solid #27ae60;
+      border-top: 10px solid transparent;
+      border-bottom: 10px solid transparent;
+    }
+
+    .arrow-text {
+      background: rgba(249, 115, 22, 0.15);
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      padding: 12px 24px;
+      border-radius: 30px;
+      color: #f97316;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .components-card {
+      width: 520px;
+      background: linear-gradient(180deg, #1c2128 0%, #161b22 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 24px;
+      padding: 35px;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.4);
+    }
+
+    .components-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 25px;
+    }
+
+    .components-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .components-badge {
+      background: rgba(39, 174, 96, 0.15);
+      color: #27ae60;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .component-item {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 20px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 16px;
+      margin-bottom: 15px;
+    }
+
+    .component-icon {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #2d333b, #22272e);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+    }
+
+    .component-info {
+      flex: 1;
+    }
+
+    .component-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .component-stock {
+      font-size: 14px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .component-qty {
+      text-align: right;
+    }
+
+    .qty-needed {
+      font-size: 24px;
+      font-weight: 700;
+      color: #f97316;
+    }
+
+    .qty-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+    }
+
+    .component-cost {
+      text-align: right;
+      min-width: 80px;
+    }
+
+    .cost-value {
+      font-size: 20px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .cost-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 25px;
+      background: linear-gradient(135deg, rgba(39, 174, 96, 0.1), rgba(39, 174, 96, 0.05));
+      border: 1px solid rgba(39, 174, 96, 0.2);
+      border-radius: 16px;
+      margin-top: 20px;
+    }
+
+    .total-label {
+      font-size: 18px;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .total-values {
+      text-align: right;
+    }
+
+    .total-cost {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .total-profit {
+      font-size: 16px;
+      color: #27ae60;
+      font-weight: 600;
+    }
+
+    .bottom-callout {
+      position: absolute;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 40px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 25px 50px;
+      border-radius: 20px;
+    }
+
+    .callout-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .callout-icon {
+      width: 50px;
+      height: 50px;
+      background: rgba(39, 174, 96, 0.15);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #27ae60;
+    }
+
+    .callout-text {
+      color: rgba(255,255,255,0.6);
+      font-size: 16px;
+    }
+
+    .callout-text strong {
+      color: #fff;
+      display: block;
+      font-size: 18px;
+    }
+
+    .divider {
+      width: 1px;
+      height: 50px;
+      background: rgba(255,255,255,0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="glow-orb glow-1"></div>
+  <div class="glow-orb glow-2"></div>
+
+  <div class="container">
+    <div class="header">
+      <div class="feature-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        Unique Feature
+      </div>
+      <h1>Recipe & <span>Bill of Materials</span></h1>
+      <p class="subtitle">Sell products made from multiple components. Inventory updates automatically.</p>
+    </div>
+
+    <div class="demo-area">
+      <div class="product-card">
+        <div class="product-image">🎁</div>
+        <div class="product-name">Deluxe Gift Basket</div>
+        <div class="product-price">$45.00</div>
+        <div class="product-meta">
+          <div class="meta-item">
+            <div class="meta-label">In Stock</div>
+            <div class="meta-value">12</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Sold</div>
+            <div class="meta-value">84</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-connector">
+        <div class="arrow-text">Made From</div>
+        <div class="arrow-line"></div>
+      </div>
+
+      <div class="components-card">
+        <div class="components-header">
+          <div class="components-title">Recipe Components</div>
+          <div class="components-badge">Auto-Tracked</div>
+        </div>
+
+        <div class="component-item">
+          <div class="component-icon">🧺</div>
+          <div class="component-info">
+            <div class="component-name">Wicker Basket</div>
+            <div class="component-stock">156 in stock</div>
+          </div>
+          <div class="component-qty">
+            <div class="qty-needed">×1</div>
+            <div class="qty-label">needed</div>
+          </div>
+          <div class="component-cost">
+            <div class="cost-value">$8.00</div>
+            <div class="cost-label">cost</div>
+          </div>
+        </div>
+
+        <div class="component-item">
+          <div class="component-icon">🕯️</div>
+          <div class="component-info">
+            <div class="component-name">Scented Candle</div>
+            <div class="component-stock">89 in stock</div>
+          </div>
+          <div class="component-qty">
+            <div class="qty-needed">×2</div>
+            <div class="qty-label">needed</div>
+          </div>
+          <div class="component-cost">
+            <div class="cost-value">$6.00</div>
+            <div class="cost-label">cost</div>
+          </div>
+        </div>
+
+        <div class="component-item">
+          <div class="component-icon">🎀</div>
+          <div class="component-info">
+            <div class="component-name">Satin Ribbon</div>
+            <div class="component-stock">340 in stock</div>
+          </div>
+          <div class="component-qty">
+            <div class="qty-needed">×1</div>
+            <div class="qty-label">needed</div>
+          </div>
+          <div class="component-cost">
+            <div class="cost-value">$1.50</div>
+            <div class="cost-label">cost</div>
+          </div>
+        </div>
+
+        <div class="total-row">
+          <div class="total-label">True Cost per Basket</div>
+          <div class="total-values">
+            <div class="total-cost">$21.50</div>
+            <div class="total-profit">Profit: $23.50 (52%)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-callout">
+      <div class="callout-item">
+        <div class="callout-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <div class="callout-text">
+          <strong>Auto-Deduct</strong>
+          All components update when you invoice
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="callout-item">
+        <div class="callout-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <div class="callout-text">
+          <strong>Smart Alerts</strong>
+          Know when you can't build more
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="callout-item">
+        <div class="callout-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="1" x2="12" y2="23"/>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        </div>
+        <div class="callout-text">
+          <strong>True Profit</strong>
+          See real margins, not guesses
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

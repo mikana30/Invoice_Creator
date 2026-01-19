@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=2000, height=1500">
+  <title>Invoice Creator - Dashboard</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 2000px;
+      height: 1500px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .app {
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Navigation */
+    .nav {
+      background: #2c3e50;
+      padding: 1.25rem 2.5rem;
+      display: flex;
+      gap: 1.25rem;
+      align-items: center;
+    }
+
+    .nav h1 {
+      color: white;
+      font-size: 1.75rem;
+      margin-right: 2.5rem;
+    }
+
+    .nav button {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 0.625rem 1.25rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .nav button.active {
+      background: rgba(255,255,255,0.1);
+      border-color: white;
+    }
+
+    .nav-stats {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      padding: 0.625rem 1.25rem;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1rem;
+    }
+
+    .nav-stat-divider {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .support-dev-btn {
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+      border: none;
+      color: white;
+      padding: 0.625rem 1.25rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      padding: 2.5rem;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Dashboard Grid */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 1.75rem;
+    }
+
+    .stat-card h3 {
+      font-size: 0.9rem;
+      color: #888;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-card .value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #2c3e50;
+    }
+
+    .stat-card .value.green { color: #27ae60; }
+    .stat-card .value.orange { color: #f39c12; }
+    .stat-card .value.red { color: #e74c3c; }
+    .stat-card .value.blue { color: #3498db; }
+
+    .stat-card .subtext {
+      font-size: 0.9rem;
+      color: #888;
+      margin-top: 0.25rem;
+    }
+
+    /* Cards */
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 1.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      margin-bottom: 1rem;
+      color: #2c3e50;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 0.5rem;
+      font-size: 1.25rem;
+    }
+
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 0.875rem;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #555;
+    }
+
+    /* Status Badges */
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.625rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-paid { background: #d4edda; color: #155724; }
+    .status-unpaid { background: #fff3cd; color: #856404; }
+    .status-partial { background: #cce5ff; color: #004085; }
+    .status-overdue { background: #f8d7da; color: #721c24; }
+
+    /* Alerts */
+    .alert-warning {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 4px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      color: #856404;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .alert-warning strong {
+      color: #664d03;
+    }
+
+    /* Low Stock Item */
+    .low-stock-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .low-stock-item:last-child {
+      border-bottom: none;
+    }
+
+    .low-stock-item .name {
+      font-weight: 500;
+    }
+
+    .low-stock-item .count {
+      color: #e74c3c;
+      font-weight: 600;
+    }
+
+    /* Recent Activity */
+    .activity-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+
+    .activity-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+    }
+
+    .activity-icon.green { background: #d4edda; }
+    .activity-icon.blue { background: #cce5ff; }
+    .activity-icon.orange { background: #fff3cd; }
+
+    .activity-text {
+      flex: 1;
+    }
+
+    .activity-text .title {
+      font-weight: 500;
+      color: #2c3e50;
+    }
+
+    .activity-text .subtitle {
+      font-size: 0.875rem;
+      color: #888;
+    }
+
+    .activity-amount {
+      font-weight: 600;
+      color: #27ae60;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <nav class="nav">
+      <h1>Invoice Creator</h1>
+      <button class="active">Dashboard</button>
+      <button>Invoices</button>
+      <button>Clients</button>
+      <button>Items</button>
+      <button>Inventory</button>
+      <button>Settings</button>
+      <button>Export</button>
+      <div class="nav-stats">
+        <span>47 invoices</span>
+        <span class="nav-stat-divider">|</span>
+        <span>$24,580.00 billed</span>
+      </div>
+      <button class="support-dev-btn">Support Dev</button>
+    </nav>
+
+    <main class="main-content">
+      <div class="dashboard-grid">
+        <div class="stat-card">
+          <h3>Total Billed</h3>
+          <div class="value">$24,580</div>
+          <div class="subtext">47 invoices</div>
+        </div>
+        <div class="stat-card">
+          <h3>Collected This Month</h3>
+          <div class="value green">$8,450</div>
+          <div class="subtext">23 payments</div>
+        </div>
+        <div class="stat-card">
+          <h3>Unpaid</h3>
+          <div class="value orange">$3,280</div>
+          <div class="subtext">8 invoices</div>
+        </div>
+        <div class="stat-card">
+          <h3>Overdue</h3>
+          <div class="value red">$1,150</div>
+          <div class="subtext">3 invoices</div>
+        </div>
+      </div>
+
+      <div class="alert-warning">
+        <span style="font-size: 1.5rem;">⚠️</span>
+        <div>
+          <strong>3 invoices are past due!</strong>
+          Follow up with clients to collect payment.
+        </div>
+      </div>
+
+      <div class="two-column">
+        <div class="card">
+          <h2>Recent Invoices</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Invoice</th>
+                <th>Client</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>INV-2025-047</td>
+                <td>Sarah Mitchell</td>
+                <td>$1,250.00</td>
+                <td><span class="status-badge status-paid">Paid</span></td>
+              </tr>
+              <tr>
+                <td>INV-2025-046</td>
+                <td>Tech Solutions Inc</td>
+                <td>$3,400.00</td>
+                <td><span class="status-badge status-unpaid">Unpaid</span></td>
+              </tr>
+              <tr>
+                <td>INV-2025-045</td>
+                <td>Green Valley Co.</td>
+                <td>$890.00</td>
+                <td><span class="status-badge status-partial">Partial</span></td>
+              </tr>
+              <tr>
+                <td>INV-2025-044</td>
+                <td>Mountain View LLC</td>
+                <td>$675.00</td>
+                <td><span class="status-badge status-overdue">Overdue</span></td>
+              </tr>
+              <tr>
+                <td>INV-2025-043</td>
+                <td>Craft & Co.</td>
+                <td>$2,100.00</td>
+                <td><span class="status-badge status-paid">Paid</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <div class="card">
+            <h2>Low Stock Alerts</h2>
+            <div class="low-stock-item">
+              <span class="name">Wicker Basket (Large)</span>
+              <span class="count">3 left</span>
+            </div>
+            <div class="low-stock-item">
+              <span class="name">Scented Candle - Lavender</span>
+              <span class="count">5 left</span>
+            </div>
+            <div class="low-stock-item">
+              <span class="name">Gift Box - Premium</span>
+              <span class="count">2 left</span>
+            </div>
+            <div class="low-stock-item">
+              <span class="name">Ribbon - Satin Gold</span>
+              <span class="count">8 left</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Recent Activity</h2>
+            <div class="activity-item">
+              <div class="activity-icon green">💰</div>
+              <div class="activity-text">
+                <div class="title">Payment received</div>
+                <div class="subtitle">Sarah Mitchell - INV-2025-047</div>
+              </div>
+              <div class="activity-amount">+$1,250</div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-icon blue">📄</div>
+              <div class="activity-text">
+                <div class="title">Invoice created</div>
+                <div class="subtitle">Tech Solutions Inc - INV-2025-046</div>
+              </div>
+              <div class="activity-amount">$3,400</div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-icon orange">📦</div>
+              <div class="activity-text">
+                <div class="title">Low stock alert</div>
+                <div class="subtitle">Wicker Basket (Large)</div>
+              </div>
+              <div class="activity-amount" style="color: #e74c3c;">3 left</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=2000, height=1500">
+  <title>Invoice Creator - Reports & Export</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 2000px;
+      height: 1500px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .app {
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .nav {
+      background: #2c3e50;
+      padding: 1.25rem 2.5rem;
+      display: flex;
+      gap: 1.25rem;
+      align-items: center;
+    }
+
+    .nav h1 {
+      color: white;
+      font-size: 1.75rem;
+      margin-right: 2.5rem;
+    }
+
+    .nav button {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 0.625rem 1.25rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .nav button.active {
+      background: rgba(255,255,255,0.1);
+      border-color: white;
+    }
+
+    .nav-stats {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      padding: 0.625rem 1.25rem;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1rem;
+    }
+
+    .nav-stat-divider { color: rgba(255, 255, 255, 0.4); }
+
+    .support-dev-btn {
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+      border: none;
+      color: white;
+      padding: 0.625rem 1.25rem;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    .main-content {
+      flex: 1;
+      padding: 2.5rem;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .page-header h2 {
+      font-size: 1.75rem;
+      color: #2c3e50;
+    }
+
+    .date-range-picker {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: white;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .date-range-picker label {
+      font-weight: 500;
+      color: #555;
+    }
+
+    .date-range-picker input {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    .date-range-picker .btn {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .reports-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .report-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 1.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+
+    .report-card:hover {
+      border-color: #3498db;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .report-card.selected {
+      border-color: #3498db;
+      background: #f0f7ff;
+    }
+
+    .report-card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .report-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .report-icon.green { background: #d4edda; }
+    .report-icon.blue { background: #cce5ff; }
+    .report-icon.orange { background: #fff3cd; }
+    .report-icon.purple { background: #e2d5f0; }
+    .report-icon.red { background: #f8d7da; }
+    .report-icon.teal { background: #d1ecf1; }
+
+    .report-card h3 {
+      font-size: 1.1rem;
+      color: #2c3e50;
+      margin: 0;
+    }
+
+    .report-card p {
+      color: #888;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 1.75rem;
+    }
+
+    .card h2 {
+      margin-bottom: 1rem;
+      color: #2c3e50;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 0.5rem;
+      font-size: 1.25rem;
+    }
+
+    /* Profit Report Preview */
+    .profit-summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .profit-stat {
+      text-align: center;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .profit-stat .value {
+      font-size: 1.75rem;
+      font-weight: 700;
+    }
+
+    .profit-stat .value.green { color: #27ae60; }
+    .profit-stat .value.red { color: #e74c3c; }
+    .profit-stat .value.blue { color: #3498db; }
+
+    .profit-stat .label {
+      font-size: 0.875rem;
+      color: #888;
+      margin-top: 0.25rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 0.875rem;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #555;
+    }
+
+    .text-right { text-align: right; }
+
+    .profit-positive { color: #27ae60; font-weight: 600; }
+    .profit-negative { color: #e74c3c; font-weight: 600; }
+
+    /* Export Options */
+    .export-options {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .export-option {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #eee;
+    }
+
+    .export-option-icon {
+      width: 40px;
+      height: 40px;
+      background: #3498db;
+      color: white;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+    }
+
+    .export-option-info {
+      flex: 1;
+    }
+
+    .export-option-info h4 {
+      color: #2c3e50;
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .export-option-info p {
+      color: #888;
+      margin: 0;
+      font-size: 0.875rem;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .btn-primary { background: #3498db; color: white; }
+    .btn-success { background: #27ae60; color: white; }
+
+    /* Internal Badge */
+    .internal-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #f0fff4;
+      border: 1px solid #27ae60;
+      color: #27ae60;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      margin-left: 1rem;
+    }
+
+    .internal-badge::before {
+      content: '🔒';
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <nav class="nav">
+      <h1>Invoice Creator</h1>
+      <button>Dashboard</button>
+      <button>Invoices</button>
+      <button>Clients</button>
+      <button>Items</button>
+      <button>Inventory</button>
+      <button>Settings</button>
+      <button class="active">Export</button>
+      <div class="nav-stats">
+        <span>47 invoices</span>
+        <span class="nav-stat-divider">|</span>
+        <span>$24,580.00 billed</span>
+      </div>
+      <button class="support-dev-btn">Support Dev</button>
+    </nav>
+
+    <main class="main-content">
+      <div class="page-header">
+        <div style="display: flex; align-items: center;">
+          <h2>Reports & Export</h2>
+          <span class="internal-badge">Your Eyes Only - Never on Customer Invoices</span>
+        </div>
+        <div class="date-range-picker">
+          <label>Date Range:</label>
+          <input type="date" value="2025-01-01">
+          <span>to</span>
+          <input type="date" value="2025-01-18">
+          <button class="btn">Apply</button>
+        </div>
+      </div>
+
+      <div class="reports-grid">
+        <div class="report-card selected">
+          <div class="report-card-header">
+            <div class="report-icon green">📊</div>
+            <div>
+              <h3>Profit Analysis</h3>
+              <p>Revenue, costs & margins</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <div class="report-card-header">
+            <div class="report-icon blue">📋</div>
+            <div>
+              <h3>Tax Report</h3>
+              <p>Taxable vs exempt sales</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <div class="report-card-header">
+            <div class="report-icon orange">📦</div>
+            <div>
+              <h3>Sales by Item</h3>
+              <p>Best sellers & quantities</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <div class="report-card-header">
+            <div class="report-icon purple">👥</div>
+            <div>
+              <h3>Client Analysis</h3>
+              <p>Top clients & revenue</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <div class="report-card-header">
+            <div class="report-icon teal">📈</div>
+            <div>
+              <h3>Monthly Summary</h3>
+              <p>Month-over-month trends</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="report-card">
+          <div class="report-card-header">
+            <div class="report-icon red">⚠️</div>
+            <div>
+              <h3>Overdue Report</h3>
+              <p>Unpaid & past due invoices</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-column">
+        <div class="card">
+          <h2>Profit Analysis - January 2025</h2>
+
+          <div class="profit-summary">
+            <div class="profit-stat">
+              <div class="value blue">$24,580</div>
+              <div class="label">Total Revenue</div>
+            </div>
+            <div class="profit-stat">
+              <div class="value red">-$8,450</div>
+              <div class="label">Total Costs</div>
+            </div>
+            <div class="profit-stat">
+              <div class="value green">$16,130</div>
+              <div class="label">Net Profit (66%)</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th class="text-right">Qty Sold</th>
+                <th class="text-right">Revenue</th>
+                <th class="text-right">Cost</th>
+                <th class="text-right">Profit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Deluxe Gift Basket</td>
+                <td class="text-right">45</td>
+                <td class="text-right">$2,025.00</td>
+                <td class="text-right">$967.50</td>
+                <td class="text-right profit-positive">$1,057.50</td>
+              </tr>
+              <tr>
+                <td>Premium Gift Basket</td>
+                <td class="text-right">28</td>
+                <td class="text-right">$2,100.00</td>
+                <td class="text-right">$952.00</td>
+                <td class="text-right profit-positive">$1,148.00</td>
+              </tr>
+              <tr>
+                <td>Logo Design</td>
+                <td class="text-right">12</td>
+                <td class="text-right">$6,000.00</td>
+                <td class="text-right">$0.00</td>
+                <td class="text-right profit-positive">$6,000.00</td>
+              </tr>
+              <tr>
+                <td>Scented Candle Set</td>
+                <td class="text-right">67</td>
+                <td class="text-right">$1,876.00</td>
+                <td class="text-right">$603.00</td>
+                <td class="text-right profit-positive">$1,273.00</td>
+              </tr>
+              <tr>
+                <td>Gift Wrapping Service</td>
+                <td class="text-right">89</td>
+                <td class="text-right">$712.00</td>
+                <td class="text-right">$133.50</td>
+                <td class="text-right profit-positive">$578.50</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h2>Export Data</h2>
+
+          <div class="export-options">
+            <div class="export-option">
+              <div class="export-option-icon">📄</div>
+              <div class="export-option-info">
+                <h4>Export Invoices (CSV)</h4>
+                <p>All invoices with client info, amounts, and status</p>
+              </div>
+              <button class="btn btn-primary">Export</button>
+            </div>
+
+            <div class="export-option">
+              <div class="export-option-icon">👥</div>
+              <div class="export-option-info">
+                <h4>Export Clients (CSV)</h4>
+                <p>Client names, addresses, and contact info</p>
+              </div>
+              <button class="btn btn-primary">Export</button>
+            </div>
+
+            <div class="export-option">
+              <div class="export-option-icon">📦</div>
+              <div class="export-option-info">
+                <h4>Export Items (CSV)</h4>
+                <p>Products with prices, costs, and inventory</p>
+              </div>
+              <button class="btn btn-primary">Export</button>
+            </div>
+
+            <div class="export-option">
+              <div class="export-option-icon">📊</div>
+              <div class="export-option-info">
+                <h4>Financial Summary (CSV)</h4>
+                <p>Monthly revenue, costs, and profit breakdown</p>
+              </div>
+              <button class="btn btn-primary">Export</button>
+            </div>
+
+            <div class="export-option" style="background: #f0fff4; border-color: #27ae60;">
+              <div class="export-option-icon" style="background: #27ae60;">💾</div>
+              <div class="export-option-info">
+                <h4>Full Backup (JSON)</h4>
+                <p>Complete data backup - can be restored later</p>
+              </div>
+              <button class="btn btn-success">Backup</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

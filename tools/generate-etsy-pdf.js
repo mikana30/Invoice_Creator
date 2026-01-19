@@ -14,7 +14,7 @@
  */
 
 const PDFDocument = require('pdfkit');
-const QRCode = require('qrcode');
+// QR code removed - desktop app only
 const fs = require('fs');
 const path = require('path');
 
@@ -38,15 +38,6 @@ async function generatePDF() {
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   }
 
-  // Generate QR code as data URL
-  const qrDataUrl = await QRCode.toDataURL(DOWNLOAD_URL, {
-    width: 200,
-    margin: 2,
-    color: {
-      dark: '#2c3e50',
-      light: '#ffffff'
-    }
-  });
 
   // Create PDF document
   const doc = new PDFDocument({
@@ -59,7 +50,6 @@ async function generatePDF() {
   doc.pipe(writeStream);
 
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const centerX = doc.page.margins.left + pageWidth / 2;
 
   // Header
   doc.fontSize(32)
@@ -88,8 +78,7 @@ async function generatePDF() {
      .font('Helvetica')
      .fillColor(COLORS.text)
      .text(
-       'Your license key is ready to be activated. Follow the simple steps below to ' +
-       'download and activate your copy of Invoice Creator.',
+       'Follow the instructions below to download and install Invoice Creator.',
        { align: 'center', lineGap: 4 }
      );
 
@@ -97,10 +86,10 @@ async function generatePDF() {
 
   // Download box
   const boxTop = doc.y;
-  const boxHeight = 180;
+  const boxHeight = 80;
 
   doc.roundedRect(doc.page.margins.left, boxTop, pageWidth, boxHeight, 10)
-     .fillAndStroke('#f8f9fa', '#e0e0e0');
+     .fillAndStroke('#d4edda', '#27ae60');
 
   doc.y = boxTop + 20;
 
@@ -111,84 +100,78 @@ async function generatePDF() {
 
   doc.moveDown(0.5);
 
-  doc.fontSize(14)
+  doc.fontSize(12)
      .font('Helvetica-Bold')
      .fillColor(COLORS.primary)
      .text(DOWNLOAD_URL, { align: 'center', link: DOWNLOAD_URL });
 
-  doc.moveDown(1);
+  doc.y = boxTop + boxHeight + 20;
 
-  // QR Code
-  const qrSize = 100;
-  const qrX = centerX - qrSize / 2;
-  doc.image(qrDataUrl, qrX, doc.y, { width: qrSize, height: qrSize });
+  // Windows Installation
+  doc.moveDown(0.5);
 
-  doc.y = boxTop + boxHeight + 30;
-
-  // Tip box
-  doc.roundedRect(doc.page.margins.left, doc.y, pageWidth, 50, 8)
-     .fill('#d4edda');
-
-  doc.y += 18;
-
-  doc.fontSize(11)
+  doc.fontSize(14)
      .font('Helvetica-Bold')
-     .fillColor('#155724')
-     .text('Scan the QR code or click the link above to download!', { align: 'center' });
+     .fillColor(COLORS.primary)
+     .text('Windows Installation', { align: 'left' });
 
-  doc.y += 25;
+  doc.moveDown(0.5);
 
-  // Steps
-  doc.moveDown(1);
-
-  doc.fontSize(16)
-     .font('Helvetica-Bold')
-     .fillColor(COLORS.secondary)
-     .text('Installation Instructions', { align: 'center' });
-
-  doc.moveDown(1);
-
-  const steps = [
-    { num: '1', text: 'Click the download link above for your operating system' },
-    { num: '2', text: 'Run the installer and follow the prompts' },
-    { num: '3', text: 'Open Invoice Creator and start creating invoices!' }
+  const windowsSteps = [
+    'Download "Invoice.Creator.Setup.1.2.1.exe"',
+    'Double-click the installer to run it',
+    'If Windows shows "Windows protected your PC", click More info → Run anyway',
+    'Follow the installation prompts',
+    'Launch Invoice Creator from your desktop or Start menu'
   ];
 
-  doc.fontSize(11)
-     .font('Helvetica');
+  doc.fontSize(10)
+     .font('Helvetica')
+     .fillColor(COLORS.text);
 
-  steps.forEach(step => {
-    const stepY = doc.y;
-
-    // Circle with number
-    doc.circle(doc.page.margins.left + 15, stepY + 8, 12)
-       .fill(COLORS.primary);
-
-    doc.fontSize(12)
-       .font('Helvetica-Bold')
-       .fillColor('#ffffff')
-       .text(step.num, doc.page.margins.left + 10, stepY + 3, { width: 10, align: 'center' });
-
-    // Step text
-    doc.fontSize(11)
-       .font('Helvetica')
-       .fillColor(COLORS.text)
-       .text(step.text, doc.page.margins.left + 40, stepY + 2);
-
-    doc.moveDown(1.2);
+  windowsSteps.forEach((step, i) => {
+    doc.text(`${i + 1}. ${step}`, { indent: 20 });
+    doc.moveDown(0.3);
   });
 
-  doc.moveDown(1);
+  doc.moveDown(0.8);
+
+  // Mac Installation
+  doc.fontSize(14)
+     .font('Helvetica-Bold')
+     .fillColor(COLORS.primary)
+     .text('Mac Installation', { align: 'left' });
+
+  doc.moveDown(0.5);
+
+  const macSteps = [
+    'Download "Invoice.Creator-1.2.1-arm64.dmg"',
+    'Double-click to open the disk image',
+    'Drag Invoice Creator to your Applications folder',
+    'IMPORTANT: Open Terminal and run:  xattr -cr /Applications/Invoice\\ Creator.app',
+    'Now double-click Invoice Creator to launch it'
+  ];
+
+  doc.fontSize(10)
+     .font('Helvetica')
+     .fillColor(COLORS.text);
+
+  macSteps.forEach((step, i) => {
+    doc.text(`${i + 1}. ${step}`, { indent: 20 });
+    doc.moveDown(0.3);
+  });
+
+  doc.moveDown(0.8);
 
   // System Requirements
-  doc.fontSize(12)
+  doc.fontSize(11)
      .font('Helvetica-Bold')
      .fillColor(COLORS.secondary)
-     .text('System Requirements:', { continued: true });
+     .text('System Requirements: ', { continued: true });
 
   doc.font('Helvetica')
      .fillColor(COLORS.lightGray)
-     .text('  Windows 10+ or macOS 10.15+');
+     .text('Windows 10+ or macOS 10.15+ (Apple Silicon)');
 
   doc.moveDown(2);
 

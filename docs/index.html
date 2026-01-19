@@ -147,7 +147,7 @@
 
   <script>
     // Configuration - UPDATE THIS after deploying Google Apps Script
-    const APPS_SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbynop6njZo2ZAZ0iuMZTfKKPhoA2aOJZDsV96T8dM4A9-L2ElIZz8xNpCIR0_OAXwns/exec';
 
     // Mobile detection
     function isMobile() {
@@ -207,13 +207,11 @@
       errorMessage.classList.add('hidden');
 
       try {
-        const response = await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'cors',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ orderNumber: orderNumber })
+        // Use GET with URL parameter (works better with Google Apps Script CORS)
+        const url = `${APPS_SCRIPT_URL}?orderNumber=${encodeURIComponent(orderNumber)}`;
+        const response = await fetch(url, {
+          method: 'GET',
+          redirect: 'follow'
         });
 
         const data = await response.json();
