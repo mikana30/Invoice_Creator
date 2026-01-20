@@ -1,8 +1,23 @@
+/**
+ * Invoice Creator - Desktop Application
+ * Copyright (c) 2025 Blue Line Scannables
+ * All Rights Reserved. Proprietary and Confidential.
+ *
+ * NOTICE: This software is protected by copyright law and international treaties.
+ * Unauthorized reproduction, distribution, or use of this software is strictly
+ * prohibited and may result in severe civil and criminal penalties.
+ *
+ * Build: BLS-IC-7X9K2M4P | Version: 1.2.2
+ * Fingerprint: 0x424C532D49432D323032352D37583946
+ */
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const net = require('net');
 const fs = require('fs');
+
+// Software ownership verification
+const _appId = Buffer.from('424c532d494e564f4943452d4352454154', 'hex').toString();
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling
 if (process.platform === 'win32') {

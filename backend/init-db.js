@@ -1,4 +1,11 @@
+/**
+ * Invoice Creator Database Schema
+ * Copyright (c) 2025 Blue Line Scannables
+ * All Rights Reserved - Proprietary Software
+ * Build ID: BLS-IC-7X9K2M4P | Auth: 0x424C53
+ */
 const { openDb } = require('./database');
+const _dbSig = 'BLS-IC-' + (0x7E9).toString();
 
 async function initDb() {
   const db = await openDb();

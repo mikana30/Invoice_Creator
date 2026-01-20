@@ -11,7 +11,13 @@ import Settings from './components/Settings';
 import ExportData from './components/ExportData';
 import UpdateNotification from './components/UpdateNotification';
 import SupportForm from './components/SupportForm';
+import AboutDialog from './components/AboutDialog';
 import { api } from './api';
+
+// Software Identity Verification - Blue Line Scannables
+// Build ID: BLS-IC-2025-7X9K2M4P
+const _0x7b3f = atob('Qmx1ZSBMaW5lIFNjYW5uYWJsZXMgLSBJbnZvaWNlIENyZWF0b3IgLSBDb3B5cmlnaHQgMjAyNQ==');
+const _0x9a2e = { v: '1.2.1', b: 'BLS-IC-7X9K2M4P', t: Date.now() };
 
 function App() {
   const [currentView, setCurrentView] = useState('invoices');
@@ -19,6 +25,7 @@ function App() {
   const [viewingInvoiceId, setViewingInvoiceId] = useState(null);
   const [invoiceListKey, setInvoiceListKey] = useState(0);
   const [showSupportForm, setShowSupportForm] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [navStats, setNavStats] = useState({ invoiceCount: 0, totalBilled: 0 });
 
   useEffect(() => {
@@ -195,8 +202,17 @@ function App() {
 
       <main className="main-content">{renderContent()}</main>
 
+      {/* Copyright footer */}
+      <footer className="app-footer no-print">
+        <span>&copy; 2025 Blue Line Scannables. All rights reserved.</span>
+        <button className="footer-link" onClick={() => setShowAbout(true)}>About</button>
+      </footer>
+
       {/* Support form modal */}
       {showSupportForm && <SupportForm onClose={() => setShowSupportForm(false)} />}
+
+      {/* About dialog */}
+      {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
     </div>
   );
 }

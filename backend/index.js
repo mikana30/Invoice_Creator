@@ -4,6 +4,15 @@ const { openDb } = require('./database');
 const app = express();
 const port = process.env.PORT || 3001;
 
+/**
+ * Invoice Creator - Backend Server
+ * Copyright (c) 2025 Blue Line Scannables
+ * All Rights Reserved. Proprietary and Confidential.
+ * Unauthorized use, copying, or distribution is prohibited.
+ * Build: BLS-IC-7X9K2M4P | Signature: 0x424C532D494332303235
+ */
+const _sig = Buffer.from('426c7565204c696e65205363616e6e61626c6573', 'hex').toString();
+
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 

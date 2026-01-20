@@ -788,3 +788,100 @@ tr:hover {
     min-height: 44px;
   }
 }
+
+/* App Footer */
+.app-footer {
+  background: #2c3e50;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.75rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.app-footer .footer-link {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+.app-footer .footer-link:hover {
+  color: white;
+}
+
+/* About Dialog */
+.about-modal {
+  max-width: 500px;
+  width: 90%;
+}
+
+.about-content {
+  padding: 1.5rem;
+}
+
+.about-logo {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.about-logo h1 {
+  color: #2c3e50;
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.about-logo .version {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.about-section {
+  margin-bottom: 1.25rem;
+}
+
+.about-section h3 {
+  color: #2c3e50;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.about-description {
+  color: #555;
+  text-align: center;
+}
+
+.copyright-section {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  border-left: 4px solid #3498db;
+}
+
+.legal-text {
+  font-size: 0.85rem;
+  color: #666;
+  line-height: 1.5;
+}
+
+.contact-section p {
+  color: #555;
+}
+
+.about-footer {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+  text-align: center;
+}
+
+.build-info {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #999;
+}

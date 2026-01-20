@@ -107,18 +107,18 @@ async function generatePDF() {
 
   doc.y = boxTop + boxHeight + 20;
 
-  // Windows Installation
+  // Installation Steps
   doc.moveDown(0.5);
 
   doc.fontSize(14)
      .font('Helvetica-Bold')
      .fillColor(COLORS.primary)
-     .text('Windows Installation', { align: 'left' });
+     .text('Installation Steps', { align: 'left' });
 
   doc.moveDown(0.5);
 
-  const windowsSteps = [
-    'Download "Invoice.Creator.Setup.1.2.1.exe"',
+  const installSteps = [
+    'Download "Invoice.Creator.Setup.1.2.2.exe"',
     'Double-click the installer to run it',
     'If Windows shows "Windows protected your PC", click More info → Run anyway',
     'Follow the installation prompts',
@@ -129,34 +129,7 @@ async function generatePDF() {
      .font('Helvetica')
      .fillColor(COLORS.text);
 
-  windowsSteps.forEach((step, i) => {
-    doc.text(`${i + 1}. ${step}`, { indent: 20 });
-    doc.moveDown(0.3);
-  });
-
-  doc.moveDown(0.8);
-
-  // Mac Installation
-  doc.fontSize(14)
-     .font('Helvetica-Bold')
-     .fillColor(COLORS.primary)
-     .text('Mac Installation', { align: 'left' });
-
-  doc.moveDown(0.5);
-
-  const macSteps = [
-    'Download "Invoice.Creator-1.2.1-arm64.dmg"',
-    'Double-click to open the disk image',
-    'Drag Invoice Creator to your Applications folder',
-    'IMPORTANT: Open Terminal and run:  xattr -cr /Applications/Invoice\\ Creator.app',
-    'Now double-click Invoice Creator to launch it'
-  ];
-
-  doc.fontSize(10)
-     .font('Helvetica')
-     .fillColor(COLORS.text);
-
-  macSteps.forEach((step, i) => {
+  installSteps.forEach((step, i) => {
     doc.text(`${i + 1}. ${step}`, { indent: 20 });
     doc.moveDown(0.3);
   });
@@ -171,7 +144,7 @@ async function generatePDF() {
 
   doc.font('Helvetica')
      .fillColor(COLORS.lightGray)
-     .text('Windows 10+ or macOS 10.15+ (Apple Silicon)');
+     .text('Windows 10 or later');
 
   doc.moveDown(2);
 
