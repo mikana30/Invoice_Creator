@@ -122,7 +122,8 @@ async function generatePDF() {
     'Double-click the installer to run it',
     'If Windows shows "Windows protected your PC", click More info → Run anyway',
     'Follow the installation prompts',
-    'Launch Invoice Creator from your desktop or Start menu'
+    'Launch Invoice Creator from your desktop or Start menu',
+    'If Windows Firewall asks to allow access, click "Allow" (this is normal - the app needs local network access to run)'
   ];
 
   doc.fontSize(10)

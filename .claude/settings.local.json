@@ -82,7 +82,8 @@
       "Bash(del \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\etsy-products\\\\Invoice_Creator_Download.pdf\")",
       "Bash(start cmd /c \"cd backend && node index.js\")",
       "Bash(start \"\" \"http://localhost:5173\")",
-      "Bash(start \"\" \"Start Invoice Creator.bat\")"
+      "Bash(start \"\" \"Start Invoice Creator.bat\")",
+      "Bash(del \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\test-fixes.py\")"
     ]
   }
 }
