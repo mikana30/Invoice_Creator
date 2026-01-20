@@ -105,32 +105,27 @@ function App() {
       return <InvoicePrint invoiceId={viewingInvoiceId} onBack={handleBackFromPrint} />;
     }
 
-    switch (currentView) {
-      case 'dashboard':
-        return <Dashboard />;
-      case 'clients':
-        return <ClientManager />;
-      case 'items':
-        return <ItemManager />;
-      case 'inventory':
-        return <InventoryManager />;
-      case 'settings':
-        return <Settings />;
-      case 'export':
-        return <ExportData />;
-      case 'invoices':
-      default:
-        return (
-          <>
-            <InvoiceForm
-              editingInvoice={editingInvoice}
-              onSave={handleInvoiceSaved}
-              onCancel={editingInvoice ? handleCancelEdit : null}
-            />
-            <InvoiceList onEdit={handleEditInvoice} onView={handleViewInvoice} onDuplicate={handleDuplicateInvoice} refreshKey={invoiceListKey} />
-          </>
-        );
-    }
+    return (
+      <>
+        {/* Invoice view - always mounted to preserve form state */}
+        <div style={{ display: currentView === 'invoices' ? 'block' : 'none' }}>
+          <InvoiceForm
+            editingInvoice={editingInvoice}
+            onSave={handleInvoiceSaved}
+            onCancel={editingInvoice ? handleCancelEdit : null}
+          />
+          <InvoiceList onEdit={handleEditInvoice} onView={handleViewInvoice} onDuplicate={handleDuplicateInvoice} refreshKey={invoiceListKey} />
+        </div>
+
+        {/* Other views - conditionally rendered */}
+        {currentView === 'dashboard' && <Dashboard />}
+        {currentView === 'clients' && <ClientManager />}
+        {currentView === 'items' && <ItemManager />}
+        {currentView === 'inventory' && <InventoryManager />}
+        {currentView === 'settings' && <Settings />}
+        {currentView === 'export' && <ExportData />}
+      </>
+    );
   };
 
   return (

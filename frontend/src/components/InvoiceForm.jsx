@@ -204,6 +204,9 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
     if (value.length === 0) {
       newItems[index].suggestions = [];
       newItems[index].showSuggestions = false;
+    } else {
+      // Show dropdown immediately when there's text (for "Create new" option)
+      newItems[index].showSuggestions = true;
     }
 
     setInvoiceItems(newItems);
@@ -498,10 +501,13 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
                   onChange={(e) => handleItemNameChange(index, e.target.value)}
                   onBlur={() => handleItemBlur(index)}
                   onFocus={() => {
-                    if (item.suggestions.length > 0) {
+                    // Always show dropdown on focus if there's text (to show "Create new" option)
+                    if (item.name.length > 0) {
                       const newItems = [...invoiceItems];
                       newItems[index].showSuggestions = true;
                       setInvoiceItems(newItems);
+                      // Re-trigger search in case suggestions are stale
+                      debouncedSearch(index, item.name);
                     }
                   }}
                   placeholder="Type item name..."

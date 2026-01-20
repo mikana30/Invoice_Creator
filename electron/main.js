@@ -7,7 +7,7 @@
  * Unauthorized reproduction, distribution, or use of this software is strictly
  * prohibited and may result in severe civil and criminal penalties.
  *
- * Build: BLS-IC-7X9K2M4P | Version: 1.2.2
+ * Build: BLS-IC-7X9K2M4P | Version: 1.2.3
  * Fingerprint: 0x424C532D49432D323032352D37583946
  */
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');

@@ -1,6 +1,6 @@
 {
   "name": "invoice-creator",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Professional Invoice Management Desktop Application",
   "main": "electron/main.js",
   "private": true,
