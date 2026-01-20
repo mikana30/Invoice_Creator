@@ -83,7 +83,8 @@
       "Bash(start cmd /c \"cd backend && node index.js\")",
       "Bash(start \"\" \"http://localhost:5173\")",
       "Bash(start \"\" \"Start Invoice Creator.bat\")",
-      "Bash(del \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\test-fixes.py\")"
+      "Bash(del \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\test-fixes.py\")",
+      "Bash(start \"\" \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\dist\\\\Invoice Creator Setup 1.2.3.exe\")"
     ]
   }
 }
