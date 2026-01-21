@@ -416,6 +416,11 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
             />
             {showClientDropdown && clientSearch && (
               <div className="autocomplete-dropdown">
+                {filteredClients.length === 0 && (
+                  <div className="autocomplete-item" style={{ color: '#888', cursor: 'default' }}>
+                    <small>No matching clients found</small>
+                  </div>
+                )}
                 {filteredClients.map((client) => {
                   const addressParts = [client.street, client.city, client.state].filter(Boolean);
                   const addressStr = addressParts.join(', ');
@@ -436,7 +441,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
                 <div
                   className="autocomplete-item"
                   onClick={() => setShowClientModal(true)}
-                  style={{ borderTop: filteredClients.length > 0 ? '1px solid #eee' : 'none', color: '#3498db' }}
+                  style={{ borderTop: '1px solid #eee', color: '#3498db' }}
                 >
                   <strong>+ Create "{clientSearch}"</strong>
                   <small>Add as a new client</small>
@@ -517,6 +522,11 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
                 />
                 {item.showSuggestions && (
                   <div className="autocomplete-dropdown">
+                    {item.suggestions.length === 0 && item.name && (
+                      <div className="autocomplete-item" style={{ color: '#888', cursor: 'default' }}>
+                        <small>No matching items found</small>
+                      </div>
+                    )}
                     {item.suggestions.map((suggestion) => (
                       <div
                         key={suggestion.id}
@@ -532,7 +542,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
                       <div
                         className="autocomplete-item"
                         onClick={() => openItemModal(index)}
-                        style={{ borderTop: item.suggestions.length > 0 ? '1px solid #eee' : 'none', color: '#3498db' }}
+                        style={{ borderTop: '1px solid #eee', color: '#3498db' }}
                       >
                         <strong>+ Create "{item.name}"</strong>
                         <small>Add as a new item with inventory/recipe</small>
