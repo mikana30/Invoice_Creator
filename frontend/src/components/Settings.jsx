@@ -474,6 +474,22 @@ export default function Settings() {
           Tip: Create regular backups, especially before major updates. Restore will replace ALL data (clients, items, invoices, settings).
         </p>
       </div>
+
+      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid #eee' }}>
+        <h3>Uninstall</h3>
+        <p style={{ color: '#666', marginBottom: '1rem' }}>
+          To remove Invoice Creator from your computer, use Windows Settings.
+        </p>
+        <button
+          className="btn btn-danger"
+          onClick={() => window.open('ms-settings:appsfeatures', '_blank')}
+        >
+          Open Windows Apps Settings
+        </button>
+        <p style={{ color: '#888', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+          Search for "Invoice Creator" in the list and click Uninstall.
+        </p>
+      </div>
     </div>
   );
 }
