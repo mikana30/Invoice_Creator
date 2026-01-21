@@ -499,6 +499,15 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
 
         <h3>Invoice Items</h3>
         <div className="invoice-items">
+          {/* Column headers */}
+          <div className="invoice-item-row" style={{ borderBottom: '1px solid #ddd', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
+            <div className="form-group item-name" style={{ fontWeight: '600', fontSize: '0.9rem' }}>Item</div>
+            <div className="form-group item-qty" style={{ fontWeight: '600', fontSize: '0.9rem', textAlign: 'center' }}>Qty</div>
+            <div className="form-group item-price" style={{ fontWeight: '600', fontSize: '0.9rem', textAlign: 'center' }}>Price</div>
+            <div className="item-tax" style={{ fontWeight: '600', fontSize: '0.9rem', textAlign: 'center' }}>Tax</div>
+            <div className="item-total" style={{ fontWeight: '600', fontSize: '0.9rem' }}>Total</div>
+            <div style={{ width: '32px' }}></div>
+          </div>
           {invoiceItems.map((item, index) => (
             <div key={index} className="invoice-item-row">
               <div className="form-group item-name autocomplete">
