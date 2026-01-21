@@ -16,7 +16,7 @@ function getDbPath() {
   const isInstalled = __dirname.toLowerCase().includes('program files');
 
   if (isInstalled && process.env.APPDATA) {
-    const appDataPath = path.join(process.env.APPDATA, 'Invoice Creator');
+    const appDataPath = path.join(process.env.APPDATA, 'invoice-creator');
     if (!fs.existsSync(appDataPath)) {
       fs.mkdirSync(appDataPath, { recursive: true });
     }
