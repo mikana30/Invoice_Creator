@@ -14,29 +14,31 @@ function useEscapeKey(onClose) {
   }, [onClose]);
 }
 
-// Shared modal styles
+// Shared modal styles (dark theme)
 const modalOverlayStyle = {
   position: 'fixed',
   top: 0,
   left: 0,
   right: 0,
   bottom: 0,
-  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  backgroundColor: 'rgba(0, 0, 0, 0.7)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   zIndex: 1000,
+  backdropFilter: 'blur(4px)',
 };
 
 const modalContentStyle = {
-  backgroundColor: 'white',
-  borderRadius: '8px',
+  backgroundColor: 'var(--bg-secondary, #161b22)',
+  border: '1px solid var(--border-primary, #30363d)',
+  borderRadius: '12px',
   padding: '1.5rem',
   maxWidth: '500px',
   width: '90%',
   maxHeight: '90vh',
   overflow: 'auto',
-  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
 };
 
 const modalHeaderStyle = {
@@ -44,8 +46,8 @@ const modalHeaderStyle = {
   justifyContent: 'space-between',
   alignItems: 'center',
   marginBottom: '1rem',
-  paddingBottom: '0.5rem',
-  borderBottom: '1px solid #eee',
+  paddingBottom: '0.75rem',
+  borderBottom: '1px solid var(--border-primary, #30363d)',
 };
 
 // ============================================
@@ -88,7 +90,7 @@ export function QuickAddClientModal({ initialName, onSave, onClose }) {
           <h3 style={{ margin: 0 }}>Quick Add Client</h3>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#666' }}
+            style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted, #6e7681)' }}
           >
             &times;
           </button>
@@ -231,7 +233,7 @@ export function QuickAddInventoryProductModal({ initialName, onSave, onClose }) 
           <h3 style={{ margin: 0 }}>Quick Add Inventory Product</h3>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#666' }}
+            style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted, #6e7681)' }}
           >
             &times;
           </button>
@@ -406,7 +408,7 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
           <h3 style={{ margin: 0 }}>Quick Add Item</h3>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#666' }}
+            style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted, #6e7681)' }}
           >
             &times;
           </button>
@@ -497,7 +499,7 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
           </div>
 
           {/* Recipe / Bill of Materials */}
-          <div style={{ marginTop: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
+          <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--bg-tertiary, #1c2128)', borderRadius: '8px', border: '1px solid var(--border-secondary, #21262d)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
               <label style={{ fontWeight: '600', margin: 0 }}>Recipe / Components</label>
               <button
@@ -517,7 +519,7 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
             )}
 
             {components.length === 0 && !form.baseInventoryId && (
-              <small style={{ color: '#888' }}>
+              <small style={{ color: 'var(--text-muted, #6e7681)' }}>
                 Add inventory products needed to make this item
               </small>
             )}
@@ -527,7 +529,7 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
                 <select
                   value={comp.inventoryProductId}
                   onChange={(e) => updateComponent(index, 'inventoryProductId', e.target.value)}
-                  style={{ flex: 2, padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                  style={{ flex: 2, padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-primary, #30363d)', background: 'var(--bg-tertiary, #1c2128)', color: 'var(--text-primary, #e6edf3)' }}
                   required
                 >
                   <option value="">-- Select Product --</option>
@@ -543,7 +545,7 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
                   min="1"
                   value={comp.quantityNeeded}
                   onChange={(e) => updateComponent(index, 'quantityNeeded', e.target.value)}
-                  style={{ width: '70px', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                  style={{ width: '70px', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-primary, #30363d)', background: 'var(--bg-tertiary, #1c2128)', color: 'var(--text-primary, #e6edf3)', textAlign: 'center' }}
                   placeholder="Qty"
                 />
                 <button
