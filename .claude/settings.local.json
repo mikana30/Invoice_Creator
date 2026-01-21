@@ -108,7 +108,11 @@
       "Bash(\"C:/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" setup.iss)",
       "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" /V9 setup.iss)",
       "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" setup.iss)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git fetch:*)",
+      "Bash(cd:*)",
+      "Bash(\"/c/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\":*)"
     ]
   }
 }

@@ -269,6 +269,29 @@ Hidden ownership signatures embedded throughout codebase:
 
 ---
 
+## Known Bugs / TODO
+
+### Invoice Form - Items Dropdown Shows "None"
+- **Issue:** When testing installed version, invoice item search shows no results
+- **Cause:** Under investigation - may be timing/API connection issue on startup
+- **Workaround:** Wait for server to fully start before using app
+
+### Recipe Section - No Adjusted Profit Display
+- **Issue:** When adding recipe components, no cost/profit calculation is shown
+- **Cause:** `inventory_products` table lacks a `cost` column
+- **Fix needed:**
+  1. Add `cost` column to `inventory_products` table
+  2. Add cost field to InventoryManager form
+  3. Calculate and display component cost sum in ItemManager
+  4. Show "adjusted profit" = sell price - component costs
+
+### Data Path Mismatch (FIXED v1.2.4)
+- Old Electron app: `AppData/Roaming/invoice-creator/`
+- New browser app was looking in: `AppData/Roaming/Invoice Creator/`
+- Fixed to use old path to preserve customer data
+
+---
+
 ## Failed Fixes (Do Not Repeat)
 
 (None currently - section preserved for future reference)

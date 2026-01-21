@@ -290,6 +290,13 @@ export default function ItemManager() {
                 Add inventory products needed to make this item (e.g., 1 wood, 1 ribbon, 1 bell)
               </small>
             )}
+            {components.length > 0 && (
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.85rem', color: '#666' }}>
+                <span style={{ flex: 2 }}>Inventory Product</span>
+                <span style={{ width: '80px', textAlign: 'center' }}>Qty Needed</span>
+                <span style={{ width: '32px' }}></span>
+              </div>
+            )}
             {components.map((comp, index) => (
               <div key={index} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
                 <select
@@ -310,7 +317,7 @@ export default function ItemManager() {
                   min="1"
                   value={comp.quantityNeeded}
                   onChange={(e) => updateComponent(index, 'quantityNeeded', e.target.value)}
-                  style={{ width: '80px', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                  style={{ width: '80px', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd', textAlign: 'center' }}
                   placeholder="Qty"
                 />
                 <button
