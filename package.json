@@ -1,89 +1,22 @@
 {
   "name": "invoice-creator",
-  "version": "1.2.3",
-  "description": "Professional Invoice Management Desktop Application",
-  "main": "electron/main.js",
+  "version": "1.2.4",
+  "description": "Professional Invoice Management Application",
   "private": true,
   "author": "Blue Line Scannables",
   "license": "proprietary",
   "scripts": {
-    "start": "electron .",
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"wait-on http://localhost:5173 && npm run dev:electron\"",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && node index.js",
     "dev:frontend": "cd frontend && npm run dev",
-    "dev:electron": "cross-env NODE_ENV=development electron .",
-    "build": "npm run build:frontend && electron-builder",
+    "build": "npm run build:frontend",
     "build:frontend": "cd frontend && npm run build",
-    "postinstall": "electron-builder install-app-deps",
+    "start": "node backend/index.js",
     "generate-license": "node tools/license-generator.js"
-  },
-  "dependencies": {
-    "electron-store": "^8.1.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
-    "cross-env": "^7.0.3",
-    "electron": "^33.0.0",
-    "electron-builder": "^25.1.8",
     "pdfkit": "^0.17.2",
-    "qrcode": "^1.5.4",
-    "wait-on": "^8.0.1"
-  },
-  "build": {
-    "appId": "com.bluelinescannables.invoicecreator",
-    "productName": "Invoice Creator",
-    "directories": {
-      "output": "dist",
-      "buildResources": "build"
-    },
-    "files": [
-      "electron/**/*",
-      "backend/**/*",
-      "frontend/dist/**/*",
-      "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,README,readme}",
-      "!**/*.map"
-    ],
-    "extraResources": [
-      {
-        "from": "backend/node_modules",
-        "to": "backend/node_modules",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
-    "win": {
-      "target": "nsis",
-      "signAndEditExecutable": false
-    },
-    "mac": {
-      "target": [
-        "dmg",
-        "zip"
-      ],
-      "category": "public.app-category.business"
-    },
-    "dmg": {
-      "title": "Invoice Creator",
-      "contents": [
-        {
-          "x": 130,
-          "y": 220
-        },
-        {
-          "x": 410,
-          "y": 220,
-          "type": "link",
-          "path": "/Applications"
-        }
-      ]
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Invoice Creator"
-    }
+    "qrcode": "^1.5.4"
   }
 }

@@ -131,7 +131,7 @@ function App() {
   return (
     <div className="app">
       {/* Update notification banner */}
-      {window.electronAPI && <UpdateNotification />}
+      <UpdateNotification />
 
       <nav className="nav no-print">
         <h1>Invoice Creator</h1>

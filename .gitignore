@@ -47,3 +47,6 @@ npm-debug.log*
 # Windows reserved names
 nul
 backend/nul
+
+# Portable Node.js runtime (for distribution only)
+portable-node/

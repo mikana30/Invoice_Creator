@@ -6,25 +6,19 @@ cd /d "%~dp0"
 curl -s http://localhost:3001/api/health >nul 2>&1
 if %errorlevel% equ 0 (
     echo Invoice Creator is already running!
-    echo Opening browser...
     start "" "http://localhost:3001"
-    timeout /t 3 /nobreak >nul
+    timeout /t 2 /nobreak >nul
     exit /b
 )
 
-:: Check for portable Node.js (production install)
-if exist "portable-node\node\node.exe" (
-    set "NODE_EXE=%CD%\portable-node\node\node.exe"
-) else (
-    :: Fall back to system Node.js (development)
-    where node >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo ERROR: Node.js not found!
-        echo Please install Node.js from https://nodejs.org/
-        pause
-        exit /b 1
-    )
-    set "NODE_EXE=node"
+:: Use bundled Node.js
+set "NODE_EXE=%~dp0node\node.exe"
+
+if not exist "%NODE_EXE%" (
+    echo ERROR: Node.js not found!
+    echo Please reinstall Invoice Creator.
+    pause
+    exit /b 1
 )
 
 :: Start the backend server
@@ -41,10 +35,10 @@ echo.
 echo  =============================================
 echo.
 
-:: Start backend in background and wait for it to be ready
+:: Start backend in background
 start /b "" "%NODE_EXE%" backend\index.js
 
-:: Wait for backend to be ready (poll health endpoint)
+:: Wait for backend to be ready
 echo  Waiting for server to start...
 set /a attempts=0
 :waitloop
@@ -53,23 +47,20 @@ curl -s http://localhost:3001/api/health >nul 2>&1
 if %errorlevel% equ 0 goto :ready
 set /a attempts+=1
 if %attempts% lss 30 goto :waitloop
-echo  ERROR: Server failed to start after 30 seconds.
+echo  ERROR: Server failed to start.
 pause
 exit /b 1
 
 :ready
-echo  Server started successfully!
+echo  Server started!
 echo.
-echo  Opening browser...
 start "" "http://localhost:3001"
-echo.
 echo  Invoice Creator is running at: http://localhost:3001
 echo.
 
-:: Keep window open and wait for user to close
+:: Keep window open
 :keepalive
 timeout /t 5 /nobreak >nul
-:: Check if backend is still running
 curl -s http://localhost:3001/api/health >nul 2>&1
 if %errorlevel% equ 0 goto :keepalive
 

@@ -1,26 +1,11 @@
-// Default API base for development
-let API_BASE = 'http://localhost:3001';
-
-// Initialize API with dynamic port from Electron
-export async function initializeAPI() {
-  if (window.electronAPI) {
-    try {
-      const port = await window.electronAPI.getBackendPort();
-      if (port) {
-        API_BASE = `http://localhost:${port}`;
-        console.log('API initialized with port:', port);
-      }
-    } catch (error) {
-      console.error('Failed to get backend port:', error);
-    }
-  }
-  return API_BASE;
-}
+// API base URL - backend always runs on port 3001
+const API_BASE = 'http://localhost:3001';
 
 export const api = {
   // Settings
   async getSettings() {
     const res = await fetch(`${API_BASE}/settings`);
+    if (!res.ok) throw new Error('Failed to load settings');
     return res.json();
   },
 
@@ -30,17 +15,20 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
     });
+    if (!res.ok) throw new Error('Failed to save settings');
     return res.json();
   },
 
   // Clients
   async getClients() {
     const res = await fetch(`${API_BASE}/clients`);
+    if (!res.ok) throw new Error('Failed to load clients');
     return res.json();
   },
 
   async searchClients(query) {
     const res = await fetch(`${API_BASE}/clients/search?q=${encodeURIComponent(query)}`);
+    if (!res.ok) throw new Error('Failed to search clients');
     return res.json();
   },
 
@@ -50,6 +38,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(client),
     });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to create client');
+    }
     return res.json();
   },
 
@@ -59,6 +51,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(client),
     });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to update client');
+    }
     return res.json();
   },
 

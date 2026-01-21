@@ -1,39 +1,83 @@
 import { useState, useEffect } from 'react';
 
+// Current version - keep in sync with package.json
+const CURRENT_VERSION = '1.2.4';
+const GITHUB_REPO = 'mikana30/Invoice_Creator';
+const CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+
+// Compare semantic versions: returns 1 if a > b, -1 if a < b, 0 if equal
+function compareVersions(a, b) {
+  const partsA = a.replace(/^v/, '').split('.').map(Number);
+  const partsB = b.replace(/^v/, '').split('.').map(Number);
+
+  for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+    const numA = partsA[i] || 0;
+    const numB = partsB[i] || 0;
+    if (numA > numB) return 1;
+    if (numA < numB) return -1;
+  }
+  return 0;
+}
+
 export default function UpdateNotification() {
   const [update, setUpdate] = useState(null);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    if (!window.electronAPI) return;
-
-    // Listen for update notifications from main process
-    window.electronAPI.onUpdateAvailable((data) => {
-      setUpdate(data);
-    });
-
-    // Also check manually on mount
-    window.electronAPI.checkForUpdates().then((result) => {
-      if (result.available) {
-        setUpdate(result);
-      }
-    });
+    checkForUpdates();
   }, []);
 
+  const checkForUpdates = async () => {
+    try {
+      // Check if we should skip this check (remind later)
+      const remindAfter = localStorage.getItem('updateRemindAfter');
+      if (remindAfter && Date.now() < parseInt(remindAfter, 10)) {
+        return;
+      }
+
+      // Check if this version was skipped
+      const skippedVersions = JSON.parse(localStorage.getItem('skippedVersions') || '[]');
+
+      const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
+      if (!response.ok) return;
+
+      const release = await response.json();
+      const latestVersion = release.tag_name.replace(/^v/, '');
+
+      // Check if update is available and not skipped
+      if (compareVersions(latestVersion, CURRENT_VERSION) > 0 && !skippedVersions.includes(latestVersion)) {
+        setUpdate({
+          latestVersion,
+          downloadUrl: release.html_url,
+          releaseNotes: release.body
+        });
+      }
+    } catch (error) {
+      console.error('Failed to check for updates:', error);
+    }
+  };
+
   const handleDownload = () => {
-    if (update?.downloadUrl && window.electronAPI) {
-      window.electronAPI.openExternal(update.downloadUrl);
+    if (update?.downloadUrl) {
+      window.open(update.downloadUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
   const handleRemindLater = () => {
+    // Remind in 24 hours
+    localStorage.setItem('updateRemindAfter', String(Date.now() + CHECK_INTERVAL));
     setDismissed(true);
-    // Will show again in 24 hours (handled by main process)
   };
 
   const handleSkipVersion = () => {
+    if (update?.latestVersion) {
+      const skippedVersions = JSON.parse(localStorage.getItem('skippedVersions') || '[]');
+      if (!skippedVersions.includes(update.latestVersion)) {
+        skippedVersions.push(update.latestVersion);
+        localStorage.setItem('skippedVersions', JSON.stringify(skippedVersions));
+      }
+    }
     setDismissed(true);
-    // Won't show again for this version
   };
 
   if (!update || dismissed) {

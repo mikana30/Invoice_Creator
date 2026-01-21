@@ -84,7 +84,31 @@
       "Bash(start \"\" \"http://localhost:5173\")",
       "Bash(start \"\" \"Start Invoice Creator.bat\")",
       "Bash(del \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\test-fixes.py\")",
-      "Bash(start \"\" \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\dist\\\\Invoice Creator Setup 1.2.3.exe\")"
+      "Bash(start \"\" \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\dist\\\\Invoice Creator Setup 1.2.3.exe\")",
+      "Bash(taskkill:*)",
+      "Bash(npx asar:*)",
+      "Bash(file:*)",
+      "Bash(start \"\" \"dist/win-unpacked/Invoice Creator.exe\")",
+      "Bash(netstat:*)",
+      "Bash(ls:*)",
+      "Bash(start \"\" \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\dist\\\\win-unpacked\\\\Invoice Creator.exe\")",
+      "Bash(npm update:*)",
+      "Bash(claude:*)",
+      "Bash(git checkout:*)",
+      "Bash(del \"C:\\\\Users\\\\BlueLineScannables\\\\AppData\\\\Roaming\\\\invoice-creator\\\\database.db\" \"C:\\\\Users\\\\BlueLineScannables\\\\AppData\\\\Roaming\\\\invoice-creator\\\\database.db-shm\" \"C:\\\\Users\\\\BlueLineScannables\\\\AppData\\\\Roaming\\\\invoice-creator\\\\database.db-wal\")",
+      "Bash(cmd /c \"dir /s /b \"\"C:\\\\Users\\\\BlueLineScannables\\\\AppData\\\\Local\\\\Programs\\\\Invoice Creator\\\\resources\\\\backend\"\"\")",
+      "Bash(cmd.exe /c \"dir \"\"%LOCALAPPDATA%\\\\Programs\\\\Invoice Creator\"\" /s\")",
+      "Bash(cmd.exe /c \"echo %LOCALAPPDATA% && dir \"\"%LOCALAPPDATA%\\\\Programs\\\\Invoice Creator\"\" /s /b 2>&1\")",
+      "WebSearch",
+      "WebFetch(domain:www.electronjs.org)",
+      "Bash(handle \"node_sqlite3.node\")",
+      "Bash(del \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\frontend\\\\src\\\\components\\\\LicenseActivation.jsx\")",
+      "Bash(\"$TEMP/innosetup.exe\" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART)",
+      "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" installersetup.iss)",
+      "Bash(\"C:/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" setup.iss)",
+      "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" /V9 setup.iss)",
+      "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" setup.iss)",
+      "Bash(git log:*)"
     ]
   }
 }

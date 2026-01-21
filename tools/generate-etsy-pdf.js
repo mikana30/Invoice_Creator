@@ -118,12 +118,12 @@ async function generatePDF() {
   doc.moveDown(0.5);
 
   const installSteps = [
-    'Download "Invoice.Creator.Setup.1.2.3.exe"',
-    'Double-click the installer to run it',
-    'If Windows shows "Windows protected your PC", click More info → Run anyway',
+    'Scroll down to "Assets" and click "Invoice.Creator.Setup.1.2.4.exe"',
+    'If your browser warns "not commonly downloaded", click ••• → Keep → Keep anyway',
+    'Double-click the downloaded file to run the installer',
+    'If Windows shows "Windows protected your PC", click "More info" → "Run anyway"',
     'Follow the installation prompts',
-    'Launch Invoice Creator from your desktop or Start menu',
-    'If Windows Firewall asks to allow access, click "Allow" (this is normal - the app needs local network access to run)'
+    'Launch Invoice Creator from your desktop or Start menu'
   ];
 
   doc.fontSize(10)

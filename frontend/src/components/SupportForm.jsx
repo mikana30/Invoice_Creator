@@ -50,29 +50,18 @@ export default function SupportForm({ onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (window.electronAPI) {
-      await window.electronAPI.sendFeedback(formData);
-      setSent(true);
-    } else {
-      const subject = encodeURIComponent(`[Invoice Creator] ${formData.subject}`);
-      const body = encodeURIComponent(`Type: ${formData.type}\n\n${formData.message}\n\nReply-to: ${formData.email}`);
-      window.open(`mailto:bluelinescannables@gmail.com?subject=${subject}&body=${body}`);
-      setSent(true);
-    }
+    const subject = encodeURIComponent(`[Invoice Creator] ${formData.subject}`);
+    const body = encodeURIComponent(`Type: ${formData.type}\n\n${formData.message}\n\nReply-to: ${formData.email}`);
+    window.location.href = `mailto:bluelinescannables@gmail.com?subject=${subject}&body=${body}`;
+    setSent(true);
   };
 
   const handleDonateClick = (platform) => {
     const urls = {
       venmo: 'https://venmo.com/u/Micheal-Bauman',
-      paypal: 'https://www.paypal.com/paypalme/bluelinescannables'
+      paypal: 'https://www.paypal.com/ncp/payment/7B9QBKBAUC99G'
     };
-
-    if (window.electronAPI) {
-      window.electronAPI.openExternal(urls[platform]);
-    } else {
-      window.open(urls[platform], '_blank', 'noopener,noreferrer');
-    }
+    window.open(urls[platform], '_blank', 'noopener,noreferrer');
   };
 
   if (sent) {

@@ -47,12 +47,14 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
   const [itemModalIndex, setItemModalIndex] = useState(null);
   const [itemModalInitialPrice, setItemModalInitialPrice] = useState(0);
 
-  // Track unsaved changes
+  // Track unsaved changes - warn user but don't block window close
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
+        // Setting returnValue triggers a confirmation dialog
+        // Don't use preventDefault() as it can block Electron window closing
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -301,7 +303,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
       return;
     }
 
-    const validItems = invoiceItems.filter((item) => item.name.trim() && item.quantity > 0);
+    const validItems = invoiceItems.filter((item) => item.name?.trim() && item.quantity > 0);
     if (validItems.length === 0) {
       setMessage({ type: 'error', text: 'Please add at least one item' });
       return;
@@ -315,7 +317,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
       if (!itemId) {
         // Create new item
         try {
-          const newItem = await api.createItem({ name: item.name.trim(), price: item.price });
+          const newItem = await api.createItem({ name: item.name?.trim(), price: item.price });
           itemId = newItem.id;
         } catch (err) {
           setMessage({ type: 'error', text: `Failed to create item: ${item.name}` });
@@ -369,7 +371,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
   };
 
   const filteredClients = clients.filter((c) =>
-    c.name.toLowerCase().includes(clientSearch.toLowerCase())
+    c.name?.toLowerCase().includes(clientSearch.toLowerCase())
   );
 
   if (loading) return <div className="loading">Loading...</div>;
@@ -502,7 +504,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
                   onBlur={() => handleItemBlur(index)}
                   onFocus={() => {
                     // Always show dropdown on focus if there's text (to show "Create new" option)
-                    if (item.name.length > 0) {
+                    if (item.name?.length > 0) {
                       const newItems = [...invoiceItems];
                       newItems[index].showSuggestions = true;
                       setInvoiceItems(newItems);

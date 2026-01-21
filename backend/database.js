@@ -1,20 +1,28 @@
 const sqlite3 = require('sqlite3').verbose();
 const { open } = require('sqlite');
 const path = require('path');
+const fs = require('fs');
 
 let dbInstance = null;
 
-// Get database path - uses userData in Electron, local in development
+// Get database path
 function getDbPath() {
   // Use test database in test environment
   if (process.env.TEST_DB_PATH) {
     return process.env.TEST_DB_PATH;
   }
 
-  if (process.env.ELECTRON_USER_DATA) {
-    // Running in Electron - store in user data folder
-    return path.join(process.env.ELECTRON_USER_DATA, 'database.db');
+  // Check if running from Program Files (installed) - need to use AppData
+  const isInstalled = __dirname.toLowerCase().includes('program files');
+
+  if (isInstalled && process.env.APPDATA) {
+    const appDataPath = path.join(process.env.APPDATA, 'Invoice Creator');
+    if (!fs.existsSync(appDataPath)) {
+      fs.mkdirSync(appDataPath, { recursive: true });
+    }
+    return path.join(appDataPath, 'database.db');
   }
+
   // Development mode - use local folder
   return path.join(__dirname, 'database.db');
 }

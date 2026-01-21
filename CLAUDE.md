@@ -2,8 +2,8 @@
 
 A full-stack invoice management application for small businesses/freelancers.
 
-**Current Version:** 1.2.3
-**Platform:** Windows 10+ only
+**Current Version:** 1.2.4
+**Platform:** Windows 10+ (browser-based)
 **GitHub:** https://github.com/mikana30/Invoice_Creator
 **Support:** bluelinescannables@gmail.com
 
@@ -11,69 +11,70 @@ A full-stack invoice management application for small businesses/freelancers.
 
 | Layer    | Technology        | Port |
 |----------|-------------------|------|
-| Desktop  | Electron          | -    |
-| Frontend | React 19 + Vite   | 5173 |
+| Frontend | React 19 + Vite   | -    |
 | Backend  | Express.js        | 3001 |
 | Database | SQLite            | -    |
+| Launch   | Batch + Node.js   | -    |
+
+The app runs as a local web server and opens in your default browser.
 
 ## Project Structure
 
 ```
 Invoice Creator/
-├── electron/
-│   ├── main.js           # Electron main process
-│   ├── preload.js        # IPC bridge (contextBridge)
-│   ├── updater.js        # GitHub release update checker
-│   └── support.js        # Mailto feedback handler
+├── launcher/
+│   └── launch.bat            # Main app launcher
+├── portable-node/
+│   └── node/                 # Bundled Node.js runtime
 ├── backend/
-│   ├── index.js          # Express server & API routes
-│   ├── database.js       # SQLite connection (userData path aware)
-│   ├── init-db.js        # Schema initialization & migrations
-│   └── database.db       # SQLite database file
+│   ├── index.js              # Express server & API routes
+│   ├── database.js           # SQLite connection
+│   ├── init-db.js            # Schema initialization
+│   └── database.db           # SQLite database file
 ├── frontend/
-│   ├── index.html        # Main HTML (title: Invoice Creator)
-│   ├── src/
-│   │   ├── App.jsx       # Main app with navigation
-│   │   ├── api.js        # API client wrapper (dynamic port)
-│   │   └── components/
-│   │       ├── Dashboard.jsx         # Financial metrics & alerts
-│   │       ├── InvoiceForm.jsx       # Create/edit invoices
-│   │       ├── InvoiceList.jsx       # View & manage invoices
-│   │       ├── InvoicePrint.jsx      # Print/PDF preview
-│   │       ├── ClientManager.jsx     # Client CRUD
-│   │       ├── ItemManager.jsx       # Item/product CRUD
-│   │       ├── InventoryManager.jsx  # Shared inventory products
-│   │       ├── Settings.jsx          # Business settings
-│   │       ├── ExportData.jsx        # CSV export & backup/restore
-│   │       ├── AboutDialog.jsx       # Copyright & version info
-│   │       ├── UpdateNotification.jsx # Update available banner
-│   │       └── SupportForm.jsx       # Help/feedback form
-│   └── vite.config.js
+│   ├── index.html            # Main HTML
+│   ├── dist/                 # Production build output
+│   └── src/
+│       ├── App.jsx           # Main app with navigation
+│       ├── api.js            # API client wrapper
+│       └── components/
+│           ├── Dashboard.jsx         # Financial metrics & alerts
+│           ├── InvoiceForm.jsx       # Create/edit invoices
+│           ├── InvoiceList.jsx       # View & manage invoices
+│           ├── InvoicePrint.jsx      # Print/PDF preview
+│           ├── ClientManager.jsx     # Client CRUD
+│           ├── ItemManager.jsx       # Item/product CRUD
+│           ├── InventoryManager.jsx  # Shared inventory products
+│           ├── Settings.jsx          # Business settings
+│           ├── ExportData.jsx        # CSV export & backup/restore
+│           ├── AboutDialog.jsx       # Copyright & version info
+│           ├── UpdateNotification.jsx # GitHub release checker
+│           └── SupportForm.jsx       # Help/feedback form
 ├── tools/
-│   └── generate-etsy-pdf.js  # Generate Etsy download PDF
-├── etsy-products/
-│   └── Invoice_Creator_Download.pdf  # PDF for Etsy listing
-├── dist/
-│   └── Invoice Creator Setup 1.2.3.exe  # Windows installer
-├── package.json          # Root Electron package
-└── Start Invoice Creator.bat  # Launches installed app
+│   ├── generate-etsy-pdf.js  # Generate Etsy download PDF
+│   └── create-shortcuts.ps1  # Desktop/Start Menu shortcuts
+├── assets/                   # App icons (optional)
+├── Install Shortcuts.bat     # Creates Desktop/Start Menu shortcuts
+├── package.json              # Root package
+└── CLAUDE.md                 # This file
 ```
 
 ## Running the App
 
-### Production (Customer Experience)
-Double-click `Start Invoice Creator.bat` - launches the installed app from `%LOCALAPPDATA%\Programs\Invoice Creator\`
+### Production (User Experience)
+1. Double-click `Start Invoice Creator.bat`
+2. Browser opens automatically to http://localhost:3001
+3. Close the console window to stop the app
 
 ### Development
 ```bash
-npm run dev    # Starts backend + frontend + Electron together
+npm run dev    # Starts backend + frontend dev servers
 ```
 
 Or manually:
 ```bash
-cd backend && node index.js    # Terminal 1
-cd frontend && npm run dev     # Terminal 2
-npm run dev:electron           # Terminal 3
+cd backend && node index.js    # Terminal 1 - Backend on port 3001
+cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 ```
 
 ## Key Features
@@ -121,6 +122,12 @@ npm run dev:electron           # Terminal 3
 - Restore from backup (replaces all data)
 - Report templates (Profit Analysis, Tax Report, Sales by Item, etc.)
 
+### Update Notification
+- Automatically checks GitHub for new releases
+- Shows banner when update is available
+- "Later" dismisses for 24 hours
+- "Skip" permanently ignores that version
+
 ## Database Schema
 
 ### Tables
@@ -133,6 +140,9 @@ npm run dev:electron           # Terminal 3
 - **settings**: singleton row with business info, taxRate, invoiceNumberPrefix, invoiceNumberNextSequence, defaultPaymentTerms, sellingFeePercent, sellingFeeFixed, bannerImage
 
 ## API Endpoints
+
+### Health Check
+- `GET /api/health` - Returns `{ status: 'ok', version: '1.2.4' }`
 
 ### Settings
 - `GET /settings` - Get all settings
@@ -171,23 +181,29 @@ npm run dev:electron           # Terminal 3
 ### Data Restore
 - `POST /restore` - Full data restore from JSON backup
 
-## Building & Releasing
+## Building & Distribution
 
-### Build Windows Installer
+### Build Frontend for Production
 ```bash
-npm install           # Install dependencies
-npm run build         # Build frontend and create installer
+npm run build    # Builds frontend to frontend/dist/
 ```
-Output: `dist/Invoice Creator Setup 1.2.3.exe`
+
+### Create Distribution Package
+1. Update version in: package.json, AboutDialog.jsx, UpdateNotification.jsx, launcher/launch.bat
+2. Build frontend: `npm run build`
+3. Package the following folders:
+   - `launcher/` - App launcher
+   - `portable-node/` - Node.js runtime
+   - `backend/` - Server code + node_modules
+   - `frontend/dist/` - Built frontend
+   - `Install Shortcuts.bat` - Shortcut installer
 
 ### Create GitHub Release
 ```bash
-# Update version in: package.json, AboutDialog.jsx, electron/main.js, generate-etsy-pdf.js
-npm run build
 git add -A && git commit -m "v1.x.x - description"
 git tag v1.x.x
 git push origin main && git push origin v1.x.x
-gh release create v1.x.x "dist/Invoice Creator Setup 1.x.x.exe" --title "Invoice Creator v1.x.x" --notes "Release notes"
+gh release create v1.x.x --title "Invoice Creator v1.x.x" --notes "Release notes"
 ```
 
 ### Update Etsy PDF
@@ -199,16 +215,60 @@ node tools/generate-etsy-pdf.js
 ## Etsy Distribution
 
 **Model:** Free app, sold via Etsy digital download
-1. Customer buys on Etsy → receives PDF with download link
+1. Customer buys on Etsy -> receives PDF with download link
 2. PDF links to: https://github.com/mikana30/Invoice_Creator/releases/latest
-3. Customer downloads and installs - no license key needed
+3. Customer downloads and extracts - no license key needed
 
 ## Copyright Protection
 
 Hidden ownership signatures embedded throughout codebase:
-- `electron/main.js` - Hex-encoded app ID, build fingerprint
+- `backend/index.js` - Hex-encoded signature
 - `frontend/src/App.jsx` - Base64 encoded ownership string
 - `frontend/src/components/AboutDialog.jsx` - Build ID, hex integrity check
 - `frontend/src/components/InvoicePrint.jsx` - Zero-width character watermark in printed invoices
 
-**Copyright:** © 2025 Blue Line Scannables. All rights reserved.
+**Copyright:** (c) 2025 Blue Line Scannables. All rights reserved.
+
+---
+
+## Rules for Claude (MUST FOLLOW)
+
+### Task Tracking (MANDATORY)
+1. **Create a checklist for EVERY task** using TodoWrite - no exceptions
+2. **Check off each item immediately** when complete - never batch completions
+3. **Update CLAUDE.md after every response** - keep documentation current
+
+### Before Making Changes
+4. **ALWAYS enter plan mode** for anything beyond trivial fixes
+5. **ALWAYS commit working state first** before risky changes - ask user to confirm
+6. **Explain what you will change and why** before doing it
+7. **One change at a time** - test after EACH modification, not after 5
+
+### While Working
+8. **Test immediately** after every single file change
+9. **Stop and ask** if something doesn't work as expected - don't chain more fixes
+10. **Never modify multiple core files** (package.json, main.js, vite.config.js) in one go
+11. **If you break something, STOP** - don't try to fix the fix the fix
+
+### What NOT To Do
+12. **Never remove critical dependencies** without explicit approval
+13. **Never batch delete dependencies** from package.json
+14. **Never assume** - if unsure, ASK
+15. **Don't be clever** - simple and working beats elegant and broken
+16. **DO NOT CREATE DEV RUNS** - We use git for version control
+
+### Recovery
+17. When things go wrong: `git checkout .` to reset, then start smaller
+18. Always know the rollback plan BEFORE making changes
+
+### Documentation (MANDATORY)
+19. **Log every failed fix** in the "Failed Fixes" section below with:
+    - What was tried
+    - Why it failed
+    - What to avoid next time
+
+---
+
+## Failed Fixes (Do Not Repeat)
+
+(None currently - section preserved for future reference)

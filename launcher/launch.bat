@@ -1,6 +1,6 @@
 @echo off
 title Invoice Creator
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 :: Check if backend is already running
 curl -s http://localhost:3001/api/health >nul 2>&1
@@ -15,6 +15,8 @@ if %errorlevel% equ 0 (
 :: Check for portable Node.js (production install)
 if exist "portable-node\node\node.exe" (
     set "NODE_EXE=%CD%\portable-node\node\node.exe"
+) else if exist "launcher\node\node.exe" (
+    set "NODE_EXE=%CD%\launcher\node\node.exe"
 ) else (
     :: Fall back to system Node.js (development)
     where node >nul 2>&1

@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { openDb } = require('./database');
+require('./init-db'); // Initialize database tables on startup
 const app = express();
 const port = process.env.PORT || 3001;
 
@@ -15,6 +17,10 @@ const _sig = Buffer.from('426c7565204c696e65205363616e6e61626c6573', 'hex').toSt
 
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
+
+// Serve static frontend files in production
+const frontendPath = path.join(__dirname, '..', 'frontend', 'dist');
+app.use(express.static(frontendPath));
 
 // Input validation helpers
 function validatePositiveNumber(value, fieldName) {
@@ -33,8 +39,9 @@ function validatePositiveInteger(value, fieldName) {
   return null;
 }
 
-app.get('/', (req, res) => {
-  res.send('Hello from the backend!');
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', version: '1.2.4' });
 });
 
 // Settings routes
@@ -946,6 +953,11 @@ app.post('/restore', async (req, res) => {
     console.error('Error restoring data:', error);
     res.status(500).json({ message: 'Failed to restore data: ' + error.message });
   }
+});
+
+// Catch-all route to serve frontend for SPA routing
+app.get('/{*splat}', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
 // Only start server if not in test mode
