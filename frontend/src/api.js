@@ -1,3 +1,9 @@
+/**
+ * Invoice Creator - API Client
+ * Copyright (c) 2025 Blue Line Scannables. All rights reserved.
+ * Proprietary and confidential.
+ */
+
 // API base URL - backend always runs on port 3001
 const API_BASE = 'http://localhost:3001';
 

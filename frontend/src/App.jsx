@@ -1,3 +1,11 @@
+/**
+ * Invoice Creator
+ * Copyright (c) 2025 Blue Line Scannables. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution,
+ * or modification of this software is strictly prohibited.
+ * Contact: bluelinescannables@gmail.com
+ */
+
 import { useState, useEffect } from 'react';
 import './App.css';
 import Dashboard from './components/Dashboard';
