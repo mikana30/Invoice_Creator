@@ -269,26 +269,34 @@ Hidden ownership signatures embedded throughout codebase:
 
 ---
 
-## Known Bugs / TODO
+## Current Bug Fixes (In Progress)
 
-### Invoice Form - Items Dropdown Shows "None"
-- **Issue:** When testing installed version, invoice item search shows no results
-- **Cause:** Under investigation - may be timing/API connection issue on startup
-- **Workaround:** Wait for server to fully start before using app
+### [ ] 1. Invoice Form Data Lost on Refresh
+- **Issue:** Refreshing the invoice creation page loses all entered data
+- **Cause:** Form state only exists in React state, not persisted
+- **Fix:** Auto-save form state to localStorage, restore on page load
 
-### Recipe Section - No Adjusted Profit Display
-- **Issue:** When adding recipe components, no cost/profit calculation is shown
-- **Cause:** `inventory_products` table lacks a `cost` column
-- **Fix needed:**
-  1. Add `cost` column to `inventory_products` table
-  2. Add cost field to InventoryManager form
-  3. Calculate and display component cost sum in ItemManager
-  4. Show "adjusted profit" = sell price - component costs
+### [ ] 2. Profit Not Updating When Prices Entered
+- **Issue:** Profit calculation doesn't update in real-time
+- **Cause:** Under investigation
+- **Fix:** Ensure profit recalculates on price/cost changes
 
-### Data Path Mismatch (FIXED v1.2.4)
+### [ ] 3. Recipe/Shared Inventory Too Complicated
+- **Issue:** Adding recipe items and shared inventory is confusing
+- **Cause:** Too many concepts (Items vs Inventory Products vs Components)
+- **Fix:** Simplify the workflow - clearer labels, better UX flow
+
+---
+
+## Fixed Bugs
+
+### [x] Data Path Mismatch (FIXED v1.2.4)
 - Old Electron app: `AppData/Roaming/invoice-creator/`
 - New browser app was looking in: `AppData/Roaming/Invoice Creator/`
 - Fixed to use old path to preserve customer data
+
+### [x] Items Dropdown Shows "None" (FIXED v1.2.4)
+- Added "No matching items found" feedback message
 
 ---
 

@@ -98,12 +98,34 @@ app.get('/clients/search', async (req, res) => {
 
 app.post('/clients', async (req, res) => {
   const { name, street, street2, city, state, zip, phone, email } = req.body;
-  const db = await openDb();
-  const result = await db.run(
-    'INSERT INTO clients (name, street, street2, city, state, zip, phone, email) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [name, street, street2, city, state, zip, phone, email]
-  );
-  res.json({ id: result.lastID });
+
+  // Validate required fields
+  if (!name || !name.trim()) {
+    return res.status(400).json({ message: 'Client name is required' });
+  }
+
+  try {
+    const db = await openDb();
+    const result = await db.run(
+      'INSERT INTO clients (name, street, street2, city, state, zip, phone, email) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [name.trim(), street || '', street2 || '', city || '', state || '', zip || '', phone || '', email || '']
+    );
+    // Return the full client object so frontend has complete data
+    res.json({
+      id: result.lastID,
+      name: name.trim(),
+      street: street || '',
+      street2: street2 || '',
+      city: city || '',
+      state: state || '',
+      zip: zip || '',
+      phone: phone || '',
+      email: email || ''
+    });
+  } catch (error) {
+    console.error('Error creating client:', error);
+    res.status(500).json({ message: 'Failed to create client' });
+  }
 });
 
 app.put('/clients/:id', async (req, res) => {

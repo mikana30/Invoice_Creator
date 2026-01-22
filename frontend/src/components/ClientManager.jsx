@@ -28,6 +28,13 @@ export default function ClientManager() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate name before submission
+    if (!form.name || !form.name.trim()) {
+      setMessage({ type: 'error', text: 'Client name is required' });
+      return;
+    }
+
     try {
       if (editingId) {
         await api.updateClient(editingId, form);
@@ -40,7 +47,7 @@ export default function ClientManager() {
       setEditingId(null);
       loadClients();
     } catch (err) {
-      setMessage({ type: 'error', text: 'Failed to save client' });
+      setMessage({ type: 'error', text: err.message || 'Failed to save client' });
     }
   };
 

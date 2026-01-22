@@ -64,9 +64,16 @@ function App() {
     setCurrentView('print');
   };
 
-  const handleInvoiceSaved = () => {
+  const handleInvoiceSaved = (invoiceId) => {
+    const wasEditing = editingInvoice && editingInvoice.id;
     setEditingInvoice(null);
     setInvoiceListKey((k) => k + 1);
+
+    // Auto-open print view for newly created invoices (not edits or duplicates)
+    if (invoiceId && !wasEditing) {
+      setViewingInvoiceId(invoiceId);
+      setCurrentView('print');
+    }
   };
 
   const handleCancelEdit = () => {

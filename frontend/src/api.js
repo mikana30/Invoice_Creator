@@ -39,8 +39,12 @@ export const api = {
       body: JSON.stringify(client),
     });
     if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.message || 'Failed to create client');
+      try {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to create client');
+      } catch (parseError) {
+        throw new Error('Failed to create client - server error');
+      }
     }
     return res.json();
   },

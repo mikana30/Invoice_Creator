@@ -71,6 +71,13 @@ export function QuickAddClientModal({ initialName, onSave, onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate name before submission
+    if (!form.name || !form.name.trim()) {
+      setError('Client name is required');
+      return;
+    }
+
     setSaving(true);
     setError(null);
 

@@ -23,6 +23,8 @@ function useDebounce(callback, delay) {
   return debouncedCallback;
 }
 
+const DRAFT_STORAGE_KEY = 'invoiceCreator_draftInvoice';
+
 export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
   const [clients, setClients] = useState([]);
   const [settings, setSettings] = useState({ taxRate: 0.08, sellingFeePercent: 0, sellingFeeFixed: 0 });
@@ -40,12 +42,105 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
 
   // Quick-add modal state
   const [showClientModal, setShowClientModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
   const [itemModalIndex, setItemModalIndex] = useState(null);
   const [itemModalInitialPrice, setItemModalInitialPrice] = useState(0);
+
+  // Save draft to localStorage (debounced via the auto-save effect)
+  const saveDraftToStorage = useCallback(() => {
+    // Only save drafts for new invoices (not when editing existing ones)
+    if (editingInvoice?.id) return;
+
+    const draft = {
+      selectedClientId,
+      clientSearch,
+      invoiceDate,
+      dueDate,
+      paymentStatus,
+      amountPaid,
+      invoiceItems: invoiceItems.map(item => ({
+        itemId: item.itemId,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        cost: item.cost,
+        taxExempt: item.taxExempt,
+      })),
+      notes,
+      savedAt: new Date().toISOString(),
+    };
+
+    try {
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    } catch (e) {
+      console.warn('Failed to save draft to localStorage:', e);
+    }
+  }, [editingInvoice, selectedClientId, clientSearch, invoiceDate, dueDate, paymentStatus, amountPaid, invoiceItems, notes]);
+
+  // Clear draft from localStorage
+  const clearDraftFromStorage = useCallback(() => {
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch (e) {
+      console.warn('Failed to clear draft from localStorage:', e);
+    }
+  }, []);
+
+  // Restore draft from localStorage on mount (only for new invoices)
+  useEffect(() => {
+    if (editingInvoice || draftRestored) return;
+
+    try {
+      const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (saved) {
+        const draft = JSON.parse(saved);
+
+        // Check if draft is less than 24 hours old
+        const savedAt = new Date(draft.savedAt);
+        const hoursSinceSave = (Date.now() - savedAt.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceSave > 24) {
+          clearDraftFromStorage();
+          setDraftRestored(true);
+          return;
+        }
+
+        // Restore draft data
+        if (draft.selectedClientId) setSelectedClientId(draft.selectedClientId);
+        if (draft.clientSearch) setClientSearch(draft.clientSearch);
+        if (draft.invoiceDate) setInvoiceDate(draft.invoiceDate);
+        if (draft.dueDate) setDueDate(draft.dueDate);
+        if (draft.paymentStatus) setPaymentStatus(draft.paymentStatus);
+        if (draft.amountPaid !== undefined) setAmountPaid(draft.amountPaid);
+        if (draft.notes) setNotes(draft.notes);
+        if (draft.invoiceItems && draft.invoiceItems.length > 0) {
+          setInvoiceItems(draft.invoiceItems.map(item => ({
+            ...item,
+            suggestions: [],
+            showSuggestions: false,
+          })));
+        }
+
+        setHasUnsavedChanges(true);
+        setMessage({ type: 'info', text: 'Draft restored from previous session' });
+      }
+    } catch (e) {
+      console.warn('Failed to restore draft from localStorage:', e);
+    }
+    setDraftRestored(true);
+  }, [editingInvoice, draftRestored, clearDraftFromStorage]);
+
+  // Auto-save draft when form changes (debounced)
+  const debouncedSaveDraft = useDebounce(saveDraftToStorage, 1000);
+
+  useEffect(() => {
+    if (hasUnsavedChanges && !editingInvoice?.id && draftRestored) {
+      debouncedSaveDraft();
+    }
+  }, [hasUnsavedChanges, debouncedSaveDraft, editingInvoice, draftRestored]);
 
   // Track unsaved changes - warn user but don't block window close
   useEffect(() => {
@@ -345,12 +440,15 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
     };
 
     try {
+      let savedInvoiceId = null;
       if (editingInvoice && editingInvoice.id) {
         await api.updateInvoice(editingInvoice.id, invoiceData);
         setMessage({ type: 'success', text: 'Invoice updated successfully' });
+        savedInvoiceId = editingInvoice.id;
       } else {
-        await api.createInvoice(invoiceData);
+        const response = await api.createInvoice(invoiceData);
         setMessage({ type: 'success', text: 'Invoice created successfully' });
+        savedInvoiceId = response.id;
       }
 
       // Reset form
@@ -364,7 +462,11 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
       setInvoiceItems([{ itemId: null, name: '', quantity: 1, price: 0, cost: 0, taxExempt: false, suggestions: [], showSuggestions: false }]);
       setHasUnsavedChanges(false);
 
-      if (onSave) onSave();
+      // Clear draft from localStorage on successful save
+      clearDraftFromStorage();
+
+      // Pass the saved invoice ID so parent can navigate to print view
+      if (onSave) onSave(savedInvoiceId);
     } catch (err) {
       setMessage({ type: 'error', text: err.message || 'Failed to save invoice' });
     }
@@ -417,7 +519,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
             {showClientDropdown && clientSearch && (
               <div className="autocomplete-dropdown">
                 {filteredClients.length === 0 && (
-                  <div className="autocomplete-item" style={{ color: '#888', cursor: 'default' }}>
+                  <div className="autocomplete-item autocomplete-no-results">
                     <small>No matching clients found</small>
                   </div>
                 )}
@@ -439,9 +541,8 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
                 })}
                 {/* Create New Client option */}
                 <div
-                  className="autocomplete-item"
+                  className="autocomplete-item autocomplete-create-new"
                   onClick={() => setShowClientModal(true)}
-                  style={{ borderTop: '1px solid #eee', color: '#3498db' }}
                 >
                   <strong>+ Create "{clientSearch}"</strong>
                   <small>Add as a new client</small>
@@ -500,13 +601,13 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
         <h3>Invoice Items</h3>
         <div className="invoice-items">
           {/* Column headers */}
-          <div className="invoice-item-row" style={{ borderBottom: '1px solid #ddd', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
-            <div className="form-group item-name" style={{ fontWeight: '600', fontSize: '0.9rem' }}>Item</div>
-            <div className="form-group item-qty" style={{ fontWeight: '600', fontSize: '0.9rem', textAlign: 'center' }}>Qty</div>
-            <div className="form-group item-price" style={{ fontWeight: '600', fontSize: '0.9rem', textAlign: 'center' }}>Price</div>
-            <div className="item-tax" style={{ fontWeight: '600', fontSize: '0.9rem', textAlign: 'center' }}>No Tax</div>
-            <div className="item-total" style={{ fontWeight: '600', fontSize: '0.9rem' }}>Total</div>
-            <div style={{ width: '32px' }}></div>
+          <div className="invoice-item-row invoice-item-header">
+            <div className="form-group item-name">Item</div>
+            <div className="form-group item-qty">Qty</div>
+            <div className="form-group item-price">Price</div>
+            <div className="item-tax">No Tax</div>
+            <div className="item-total">Total</div>
+            <div className="item-actions"></div>
           </div>
           {invoiceItems.map((item, index) => (
             <div key={index} className="invoice-item-row">
@@ -532,7 +633,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
                 {item.showSuggestions && (
                   <div className="autocomplete-dropdown">
                     {item.suggestions.length === 0 && item.name && (
-                      <div className="autocomplete-item" style={{ color: '#888', cursor: 'default' }}>
+                      <div className="autocomplete-item autocomplete-no-results">
                         <small>No matching items found</small>
                       </div>
                     )}
@@ -549,9 +650,8 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
                     {/* Create New Item option */}
                     {item.name && (
                       <div
-                        className="autocomplete-item"
+                        className="autocomplete-item autocomplete-create-new"
                         onClick={() => openItemModal(index)}
-                        style={{ borderTop: '1px solid #eee', color: '#3498db' }}
                       >
                         <strong>+ Create "{item.name}"</strong>
                         <small>Add as a new item with inventory/recipe</small>
@@ -612,7 +712,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
             onChange={(e) => { setNotes(e.target.value); setHasUnsavedChanges(true); }}
             placeholder="Add any notes or special instructions for this invoice..."
             rows="3"
-            style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd', fontFamily: 'inherit', resize: 'vertical' }}
+            className="notes-textarea"
           />
         </div>
 
@@ -623,20 +723,20 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
         </div>
 
         {/* Internal profit summary - not shown on printed invoice */}
-        <div className="internal-summary" style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '4px', borderLeft: '4px solid #6c757d' }}>
-          <h4 style={{ margin: '0 0 0.5rem 0', color: '#6c757d' }}>Internal Summary</h4>
-          <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-            <div>
-              <small style={{ color: '#6c757d' }}>Item Costs</small>
-              <p style={{ margin: 0 }}>${calculateItemCosts().toFixed(2)}</p>
+        <div className="internal-summary">
+          <h4>Internal Summary</h4>
+          <div className="internal-summary-grid">
+            <div className="internal-summary-item">
+              <small>Item Costs</small>
+              <p>${calculateItemCosts().toFixed(2)}</p>
             </div>
-            <div>
-              <small style={{ color: '#6c757d' }}>Selling Fees</small>
-              <p style={{ margin: 0 }}>${calculateFees().toFixed(2)}</p>
+            <div className="internal-summary-item">
+              <small>Selling Fees</small>
+              <p>${calculateFees().toFixed(2)}</p>
             </div>
-            <div>
-              <small style={{ color: '#6c757d' }}>Est. Profit</small>
-              <p style={{ margin: 0, fontWeight: 'bold', color: calculateProfit() >= 0 ? '#27ae60' : '#e74c3c' }}>
+            <div className="internal-summary-item">
+              <small>Est. Profit</small>
+              <p className={`profit-value ${calculateProfit() >= 0 ? 'positive' : 'negative'}`}>
                 ${calculateProfit().toFixed(2)}
               </p>
             </div>

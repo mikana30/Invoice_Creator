@@ -512,6 +512,28 @@ tbody tr:hover {
   font-size: 0.8rem;
 }
 
+.autocomplete-no-results {
+  color: var(--text-muted) !important;
+  cursor: default !important;
+}
+
+.autocomplete-no-results:hover {
+  background: transparent !important;
+}
+
+.autocomplete-create-new {
+  border-top: 1px solid var(--border-primary) !important;
+  color: var(--accent-blue);
+}
+
+.autocomplete-create-new strong {
+  color: var(--accent-blue);
+}
+
+.autocomplete-create-new:hover {
+  background: rgba(88, 166, 255, 0.1);
+}
+
 /* ================================
    INVOICE ITEMS
    ================================ */
@@ -534,16 +556,8 @@ tbody tr:hover {
   transition: var(--transition-fast);
 }
 
-.invoice-item-row:hover {
+.invoice-item-row:hover:not(.invoice-item-header) {
   border-color: var(--border-primary);
-}
-
-.invoice-item-row:first-child {
-  background: transparent;
-  border: none;
-  padding-bottom: 0.5rem;
-  margin-bottom: 0.25rem;
-  border-bottom: 1px solid var(--border-secondary);
 }
 
 .invoice-item-row .form-group {
@@ -594,6 +608,58 @@ tbody tr:hover {
   color: var(--accent-green);
 }
 
+.item-actions {
+  width: 32px;
+  flex-shrink: 0;
+}
+
+/* Invoice item header row */
+.invoice-item-header {
+  background: transparent !important;
+  border: none !important;
+  padding-bottom: 0.5rem !important;
+  margin-bottom: 0.25rem !important;
+  border-bottom: 1px solid var(--border-secondary) !important;
+}
+
+.invoice-item-header > div {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.invoice-item-header .item-qty,
+.invoice-item-header .item-price,
+.invoice-item-header .item-tax {
+  text-align: center;
+}
+
+/* Notes textarea */
+.notes-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  transition: var(--transition-fast);
+}
+
+.notes-textarea:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+}
+
+.notes-textarea::placeholder {
+  color: var(--text-muted);
+}
+
 /* ================================
    INVOICE SUMMARY
    ================================ */
@@ -632,6 +698,36 @@ tbody tr:hover {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.75rem;
+}
+
+.internal-summary-grid {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.internal-summary-item small {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.internal-summary-item p {
+  margin: 0.25rem 0 0 0;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.internal-summary-item .profit-value {
+  font-weight: 700;
+}
+
+.internal-summary-item .profit-value.positive {
+  color: var(--accent-green);
+}
+
+.internal-summary-item .profit-value.negative {
+  color: var(--accent-red);
 }
 
 @media print {
@@ -814,6 +910,12 @@ tbody tr:hover {
   background: rgba(248, 81, 73, 0.15);
   color: var(--accent-red);
   border: 1px solid rgba(248, 81, 73, 0.3);
+}
+
+.alert-info {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--accent-blue);
+  border: 1px solid rgba(88, 166, 255, 0.3);
 }
 
 .alert button {
