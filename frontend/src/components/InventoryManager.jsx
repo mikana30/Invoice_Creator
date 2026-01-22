@@ -1,247 +1,220 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { api } from '../api';
 
 export default function InventoryManager() {
-  const [products, setProducts] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ name: '', quantity: '', reorderLevel: '' });
   const [message, setMessage] = useState(null);
-  const [expandedProduct, setExpandedProduct] = useState(null);
-  const [linkedItems, setLinkedItems] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [adjustingId, setAdjustingId] = useState(null);
+  const [adjustAmount, setAdjustAmount] = useState('');
 
   useEffect(() => {
-    loadProducts();
+    loadItems();
   }, []);
 
-  const loadProducts = async () => {
+  const loadItems = async () => {
     try {
-      const data = await api.getInventoryProducts();
-      setProducts(data);
+      const data = await api.getItems();
+      setItems(data);
     } catch (err) {
-      setMessage({ type: 'error', text: 'Failed to load inventory products' });
+      setMessage({ type: 'error', text: 'Failed to load inventory' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const productData = {
-      name: form.name,
-      quantity: parseInt(form.quantity) || 0,
-      reorderLevel: parseInt(form.reorderLevel) || 0,
-    };
+  const handleAdjust = async (item, delta) => {
+    const newQty = Math.max(0, (item.inventory || 0) + delta);
     try {
-      if (editingId) {
-        await api.updateInventoryProduct(editingId, productData);
-        setMessage({ type: 'success', text: 'Inventory product updated successfully' });
-      } else {
-        await api.createInventoryProduct(productData);
-        setMessage({ type: 'success', text: 'Inventory product created successfully' });
-      }
-      setForm({ name: '', quantity: '', reorderLevel: '' });
-      setEditingId(null);
-      await loadProducts();
+      await api.updateItem(item.id, { ...item, inventory: newQty });
+      setMessage({ type: 'success', text: `Updated ${item.name} stock to ${newQty}` });
+      loadItems();
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Failed to save inventory product' });
+      setMessage({ type: 'error', text: err.message || 'Failed to update inventory' });
     }
   };
 
-  const handleEdit = (product) => {
-    setEditingId(product.id);
-    setForm({
-      name: product.name,
-      quantity: product.quantity?.toString() || '',
-      reorderLevel: product.reorderLevel?.toString() || '',
-    });
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this inventory product?')) return;
+  const handleSetStock = async (item) => {
+    const newQty = parseInt(adjustAmount);
+    if (isNaN(newQty) || newQty < 0) {
+      setMessage({ type: 'error', text: 'Please enter a valid quantity' });
+      return;
+    }
     try {
-      await api.deleteInventoryProduct(id);
-      setMessage({ type: 'success', text: 'Inventory product deleted successfully' });
-      if (expandedProduct === id) {
-        setExpandedProduct(null);
-        setLinkedItems([]);
-      }
-      await loadProducts();
+      await api.updateItem(item.id, { ...item, inventory: newQty });
+      setMessage({ type: 'success', text: `Set ${item.name} stock to ${newQty}` });
+      setAdjustingId(null);
+      setAdjustAmount('');
+      loadItems();
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Failed to delete inventory product' });
+      setMessage({ type: 'error', text: err.message || 'Failed to update inventory' });
     }
   };
 
-  const handleCancel = () => {
-    setEditingId(null);
-    setForm({ name: '', quantity: '', reorderLevel: '' });
-  };
+  // Filter items
+  const filteredItems = useMemo(() => {
+    let filtered = items.filter(item => item.active !== 0); // Only show active items
 
-  const handleToggleLinkedItems = async (productId) => {
-    if (expandedProduct === productId) {
-      setExpandedProduct(null);
-      setLinkedItems([]);
-    } else {
-      try {
-        const items = await api.getInventoryProductItems(productId);
-        setLinkedItems(items);
-        setExpandedProduct(productId);
-      } catch (err) {
-        setMessage({ type: 'error', text: 'Failed to load linked items' });
-      }
+    if (showLowStockOnly) {
+      filtered = filtered.filter(item => {
+        const inventory = item.inventory || 0;
+        const reorderLevel = item.reorderLevel || 0;
+        return reorderLevel > 0 && inventory <= reorderLevel;
+      });
     }
-  };
 
-  if (loading) return <div className="loading">Loading inventory products...</div>;
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(item => item.name?.toLowerCase().includes(search));
+    }
+
+    return filtered;
+  }, [items, searchTerm, showLowStockOnly]);
+
+  const lowStockCount = items.filter(item => {
+    const inventory = item.inventory || 0;
+    const reorderLevel = item.reorderLevel || 0;
+    return item.active !== 0 && reorderLevel > 0 && inventory <= reorderLevel;
+  }).length;
+
+  if (loading) return <div className="loading">Loading inventory...</div>;
 
   return (
     <div>
       {message && (
         <div className={`alert alert-${message.type}`}>
           {message.text}
-          <button
-            onClick={() => setMessage(null)}
-            style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer' }}
-          >
-            ×
-          </button>
+          <button onClick={() => setMessage(null)} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
         </div>
       )}
 
       <div className="card">
-        <h2>{editingId ? 'Edit Inventory Product' : 'Add Inventory Product'}</h2>
-        <p style={{ color: '#666', marginBottom: '1rem', fontSize: '0.9rem' }}>
-          Create base inventory items that can be shared across multiple sell items.
-          For example, a "Notebook" inventory can be linked to both "Youth Notebook" and "Guest Central Notebook" items.
+        <h2>Inventory Overview</h2>
+        <p style={{ color: '#888', marginBottom: '1rem' }}>
+          Quick stock management. Use the Items tab to add new items or edit components.
         </p>
-        <form onSubmit={handleSubmit}>
-          <div className="form-row">
-            <div className="form-group" style={{ flex: 2 }}>
-              <label>Product Name</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="e.g., Spiral Notebook"
-                required
-              />
-            </div>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Quantity in Stock</label>
-              <input
-                type="number"
-                min="0"
-                value={form.quantity}
-                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                placeholder="0"
-              />
-            </div>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Reorder Level</label>
-              <input
-                type="number"
-                min="0"
-                value={form.reorderLevel}
-                onChange={(e) => setForm({ ...form, reorderLevel: e.target.value })}
-                placeholder="0"
-              />
-              <small style={{ color: '#888' }}>Alert when stock falls below this</small>
-            </div>
-          </div>
-          <div className="btn-group">
-            <button type="submit" className="btn btn-primary">
-              {editingId ? 'Update Product' : 'Add Product'}
-            </button>
-            {editingId && (
-              <button type="button" className="btn btn-secondary" onClick={handleCancel}>
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
-      </div>
 
-      <div className="card">
-        <h2>Inventory Products</h2>
-        {products.length === 0 ? (
+        {lowStockCount > 0 && (
+          <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
+            {lowStockCount} item{lowStockCount !== 1 ? 's' : ''} at or below reorder level
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+          <input
+            type="text"
+            placeholder="Search items..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ flex: 1, padding: '0.5rem', border: '1px solid var(--border-color)', borderRadius: '4px', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+          />
+          {lowStockCount > 0 && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap', fontSize: '0.9rem' }}>
+              <input
+                type="checkbox"
+                checked={showLowStockOnly}
+                onChange={(e) => setShowLowStockOnly(e.target.checked)}
+              />
+              Low stock only ({lowStockCount})
+            </label>
+          )}
+        </div>
+
+        {filteredItems.length === 0 ? (
           <div className="empty-state">
-            <p>No inventory products yet. Add your first base inventory product above.</p>
+            <p>{showLowStockOnly ? 'No items at low stock.' : 'No items found.'}</p>
           </div>
         ) : (
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Quantity</th>
-                <th>Reorder Level</th>
+                <th>Item</th>
+                <th>In Stock</th>
+                <th>Reorder At</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <th>Quick Adjust</th>
               </tr>
             </thead>
             <tbody>
-              {products.map((product) => {
-                const quantity = parseInt(product.quantity) || 0;
-                const reorderLevel = parseInt(product.reorderLevel) || 0;
-                const lowStock = quantity <= reorderLevel && reorderLevel > 0;
+              {filteredItems.map((item) => {
+                const inventory = item.inventory || 0;
+                const reorderLevel = item.reorderLevel || 0;
+                const lowStock = reorderLevel > 0 && inventory <= reorderLevel;
+                const hasComponents = item.componentCount > 0;
+
                 return (
-                  <>
-                    <tr key={product.id}>
-                      <td>{product.name}</td>
-                      <td>
-                        <span style={lowStock ? { color: '#e74c3c', fontWeight: 'bold' } : {}}>
-                          {quantity}
+                  <tr key={item.id}>
+                    <td>
+                      {item.name}
+                      {hasComponents && (
+                        <span style={{ color: '#3498db', marginLeft: '0.5rem', fontSize: '0.8rem' }}>
+                          ({item.componentCount} parts)
                         </span>
-                      </td>
-                      <td>{reorderLevel}</td>
-                      <td>
-                        {lowStock ? (
-                          <span style={{ color: '#e74c3c', fontWeight: 'bold' }}>Low Stock!</span>
-                        ) : (
-                          <span style={{ color: '#27ae60' }}>OK</span>
-                        )}
-                      </td>
-                      <td>
-                        <button
-                          className="btn btn-sm btn-secondary"
-                          onClick={() => handleToggleLinkedItems(product.id)}
+                      )}
+                    </td>
+                    <td>
+                      {adjustingId === item.id ? (
+                        <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                          <input
+                            type="number"
+                            min="0"
+                            value={adjustAmount}
+                            onChange={(e) => setAdjustAmount(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSetStock(item);
+                              if (e.key === 'Escape') { setAdjustingId(null); setAdjustAmount(''); }
+                            }}
+                            style={{ width: '70px', padding: '0.25rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                            autoFocus
+                          />
+                          <button className="btn btn-sm btn-primary" onClick={() => handleSetStock(item)}>Set</button>
+                          <button className="btn btn-sm btn-secondary" onClick={() => { setAdjustingId(null); setAdjustAmount(''); }}>×</button>
+                        </div>
+                      ) : (
+                        <span
+                          style={{ cursor: 'pointer', ...(lowStock ? { color: '#e74c3c', fontWeight: 'bold' } : {}) }}
+                          onClick={() => { setAdjustingId(item.id); setAdjustAmount(inventory.toString()); }}
+                          title="Click to edit"
                         >
-                          {expandedProduct === product.id ? 'Hide' : 'View'} Items
-                        </button>{' '}
-                        <button
-                          className="btn btn-sm btn-primary"
-                          onClick={() => handleEdit(product)}
-                        >
-                          Edit
-                        </button>{' '}
-                        <button
-                          className="btn btn-sm btn-danger"
-                          onClick={() => handleDelete(product.id)}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                    {expandedProduct === product.id && (
-                      <tr key={`${product.id}-items`}>
-                        <td colSpan="5" style={{ background: '#f8f9fa', padding: '1rem' }}>
-                          <strong>Linked Sell Items:</strong>
-                          {linkedItems.length === 0 ? (
-                            <p style={{ color: '#888', margin: '0.5rem 0 0' }}>
-                              No items linked to this inventory. Go to Items and select this as the base inventory.
-                            </p>
-                          ) : (
-                            <ul style={{ margin: '0.5rem 0 0', paddingLeft: '1.5rem' }}>
-                              {linkedItems.map((item) => (
-                                <li key={item.id}>
-                                  {item.name} - ${parseFloat(item.price).toFixed(2)}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </td>
-                      </tr>
-                    )}
-                  </>
+                          {inventory}
+                        </span>
+                      )}
+                    </td>
+                    <td>{reorderLevel || '-'}</td>
+                    <td>
+                      {lowStock ? (
+                        <span style={{ color: '#e74c3c', fontWeight: 'bold' }}>Low Stock!</span>
+                      ) : (
+                        <span style={{ color: '#27ae60' }}>OK</span>
+                      )}
+                    </td>
+                    <td>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => handleAdjust(item, -1)}
+                        disabled={inventory <= 0}
+                        style={{ padding: '0.25rem 0.5rem' }}
+                      >
+                        -1
+                      </button>{' '}
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => handleAdjust(item, 1)}
+                        style={{ padding: '0.25rem 0.5rem' }}
+                      >
+                        +1
+                      </button>{' '}
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => handleAdjust(item, 10)}
+                        style={{ padding: '0.25rem 0.5rem' }}
+                      >
+                        +10
+                      </button>
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>

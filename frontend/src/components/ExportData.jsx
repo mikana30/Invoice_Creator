@@ -14,6 +14,7 @@ export default function ExportData() {
   const [selectedReport, setSelectedReport] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [allTime, setAllTime] = useState(true);
 
   const escapeCSV = (value) => {
     if (value == null) return '';
@@ -151,14 +152,24 @@ export default function ExportData() {
   };
 
   // Helper to filter invoices by date range
-  const filterByDateRange = (invoices, from, to) => {
+  const filterByDateRange = (invoices, from, to, useAllTime = allTime) => {
     return invoices.filter(inv => {
       if (inv.paymentStatus === 'voided') return false;
+      if (useAllTime) return true; // No date filtering for all-time
       const invDate = inv.invoiceDate?.split('T')[0] || '';
       if (from && invDate < from) return false;
       if (to && invDate > to) return false;
       return true;
     });
+  };
+
+  // Get date range label for reports
+  const getDateRangeLabel = () => {
+    if (allTime) return 'All Time';
+    if (dateFrom && dateTo) return `${dateFrom} to ${dateTo}`;
+    if (dateFrom) return `From ${dateFrom}`;
+    if (dateTo) return `Through ${dateTo}`;
+    return 'All Time';
   };
 
   // Report: Profit Analysis
@@ -211,7 +222,7 @@ export default function ExportData() {
       // Build CSV
       const rows = [
         ['PROFIT ANALYSIS REPORT'],
-        [`Date Range: ${dateFrom || 'All'} to ${dateTo || 'All'}`],
+        [`Date Range: ${getDateRangeLabel()}`],
         [''],
         ['SUMMARY'],
         ['Metric', 'Amount'],
@@ -255,28 +266,29 @@ export default function ExportData() {
     setExporting(true);
     setMessage(null);
     try {
-      const [items, inventoryProducts] = await Promise.all([
-        api.getItems(),
-        api.getInventoryProducts(),
-      ]);
+      const items = await api.getItems();
 
       const rows = [
         ['INVENTORY VALUE REPORT'],
         [`Generated: ${new Date().toLocaleDateString()}`],
         [''],
-        ['SELLABLE ITEMS'],
-        ['Item', 'On Hand', 'Unit Cost', 'Total Value', 'Sell Price', 'Potential Revenue'],
+        ['Item', 'On Hand', 'Unit Cost', 'Total Value', 'Sell Price', 'Potential Revenue', 'Status', 'Has Components'],
       ];
 
       let totalItemValue = 0;
       let totalPotentialRevenue = 0;
 
       items.filter(i => i.active !== 0).forEach(item => {
-        const qty = item.baseInventoryId ? (parseInt(item.baseInventoryQty) || 0) : (parseInt(item.inventory) || 0);
-        const cost = parseFloat(item.cost) || 0;
+        const qty = parseInt(item.inventory) || 0;
+        // Use calculated cost if item has components, otherwise use direct cost
+        const cost = item.calculatedCost !== undefined ? parseFloat(item.calculatedCost) : (parseFloat(item.cost) || 0);
         const price = parseFloat(item.price) || 0;
         const value = qty * cost;
         const potential = qty * price;
+        const reorder = parseInt(item.reorderLevel) || 0;
+        const status = reorder > 0 && qty <= reorder ? 'LOW STOCK' : 'OK';
+        const hasComponents = (item.componentCount || 0) > 0 ? 'Yes' : 'No';
+
         totalItemValue += value;
         totalPotentialRevenue += potential;
 
@@ -286,24 +298,9 @@ export default function ExportData() {
           `$${cost.toFixed(2)}`,
           `$${value.toFixed(2)}`,
           `$${price.toFixed(2)}`,
-          `$${potential.toFixed(2)}`
-        ]);
-      });
-
-      rows.push(['', '', '', `$${totalItemValue.toFixed(2)}`, '', `$${totalPotentialRevenue.toFixed(2)}`]);
-      rows.push(['']);
-      rows.push(['INVENTORY PRODUCTS (Raw Materials)']);
-      rows.push(['Product', 'On Hand', 'Reorder Level', 'Status']);
-
-      inventoryProducts.forEach(product => {
-        const qty = parseInt(product.quantity) || 0;
-        const reorder = parseInt(product.reorderLevel) || 0;
-        const status = reorder > 0 && qty <= reorder ? 'LOW STOCK' : 'OK';
-        rows.push([
-          escapeCSV(product.name),
-          qty,
-          reorder,
-          status
+          `$${potential.toFixed(2)}`,
+          status,
+          hasComponents
         ]);
       });
 
@@ -346,7 +343,7 @@ export default function ExportData() {
 
       const rows = [
         ['CLIENT REVENUE SUMMARY'],
-        [`Date Range: ${dateFrom || 'All'} to ${dateTo || 'All'}`],
+        [`Date Range: ${getDateRangeLabel()}`],
         [''],
         ['Client', 'Invoices', 'Total Billed', 'Collected', 'Outstanding'],
       ];
@@ -431,7 +428,7 @@ export default function ExportData() {
 
       const rows = [
         ['TAX REPORT'],
-        [`Date Range: ${dateFrom || 'All'} to ${dateTo || 'All'}`],
+        [`Date Range: ${getDateRangeLabel()}`],
         [`Tax Rate: ${(taxRate * 100).toFixed(2)}%`],
         [''],
         ['SUMMARY'],
@@ -489,7 +486,7 @@ export default function ExportData() {
 
       const rows = [
         ['SALES BY ITEM REPORT'],
-        [`Date Range: ${dateFrom || 'All'} to ${dateTo || 'All'}`],
+        [`Date Range: ${getDateRangeLabel()}`],
         [''],
         ['Item', 'Qty Sold', 'Revenue', '# of Invoices', 'Avg Price'],
       ];
@@ -524,6 +521,200 @@ export default function ExportData() {
     setExporting(false);
   };
 
+  // Report: Quarterly Tax Summary (for tax filing)
+  const generateQuarterlyTax = async () => {
+    setExporting(true);
+    setMessage(null);
+    try {
+      const [invoices, settings] = await Promise.all([
+        api.getInvoices(),
+        api.getSettings(),
+      ]);
+
+      const filtered = filterByDateRange(invoices, dateFrom, dateTo);
+      const taxRate = settings.taxRate || 0.08;
+
+      // Group by quarter
+      const quarterlyData = {};
+
+      for (const inv of filtered) {
+        const invoiceData = await api.getInvoice(inv.id);
+        const date = new Date(inv.invoiceDate || inv.createdAt);
+        const quarter = Math.floor(date.getMonth() / 3) + 1;
+        const quarterKey = `${date.getFullYear()}-Q${quarter}`;
+
+        if (!quarterlyData[quarterKey]) {
+          quarterlyData[quarterKey] = {
+            taxableSales: 0,
+            exemptSales: 0,
+            taxCollected: 0,
+            invoiceCount: 0,
+            paidTax: 0
+          };
+        }
+
+        let taxable = 0;
+        let exempt = 0;
+
+        (invoiceData.items || []).forEach(item => {
+          const lineTotal = (parseFloat(item.price) || 0) * (item.quantity || 0);
+          if (item.taxExempt) {
+            exempt += lineTotal;
+          } else {
+            taxable += lineTotal;
+          }
+        });
+
+        const taxAmount = roundMoney(taxable * taxRate);
+        quarterlyData[quarterKey].taxableSales += taxable;
+        quarterlyData[quarterKey].exemptSales += exempt;
+        quarterlyData[quarterKey].taxCollected += taxAmount;
+        quarterlyData[quarterKey].invoiceCount += 1;
+
+        // Track tax on paid invoices
+        if (inv.paymentStatus === 'paid') {
+          quarterlyData[quarterKey].paidTax += taxAmount;
+        }
+      }
+
+      const rows = [
+        ['QUARTERLY TAX SUMMARY'],
+        [`Generated: ${new Date().toLocaleDateString()}`],
+        [`Date Range: ${getDateRangeLabel()}`],
+        [`Tax Rate: ${(taxRate * 100).toFixed(2)}%`],
+        [''],
+        ['Quarter', 'Invoices', 'Taxable Sales', 'Exempt Sales', 'Total Sales', 'Tax Collected', 'Tax on Paid Invoices'],
+      ];
+
+      let totals = { invoices: 0, taxable: 0, exempt: 0, tax: 0, paidTax: 0 };
+
+      Object.entries(quarterlyData)
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .forEach(([quarter, data]) => {
+          rows.push([
+            quarter,
+            data.invoiceCount,
+            `$${data.taxableSales.toFixed(2)}`,
+            `$${data.exemptSales.toFixed(2)}`,
+            `$${(data.taxableSales + data.exemptSales).toFixed(2)}`,
+            `$${data.taxCollected.toFixed(2)}`,
+            `$${data.paidTax.toFixed(2)}`
+          ]);
+          totals.invoices += data.invoiceCount;
+          totals.taxable += data.taxableSales;
+          totals.exempt += data.exemptSales;
+          totals.tax += data.taxCollected;
+          totals.paidTax += data.paidTax;
+        });
+
+      rows.push(['']);
+      rows.push(['TOTAL', totals.invoices, `$${totals.taxable.toFixed(2)}`, `$${totals.exempt.toFixed(2)}`,
+        `$${(totals.taxable + totals.exempt).toFixed(2)}`, `$${totals.tax.toFixed(2)}`, `$${totals.paidTax.toFixed(2)}`]);
+
+      downloadCSV(rows.map(r => r.join(',')).join('\n'), `quarterly-tax-${new Date().toISOString().split('T')[0]}.csv`);
+      setMessage({ type: 'success', text: `Generated Quarterly Tax Summary for ${filtered.length} invoices` });
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: 'error', text: 'Failed to generate Quarterly Tax Summary' });
+    }
+    setExporting(false);
+  };
+
+  // Report: Annual Summary
+  const generateAnnualSummary = async () => {
+    setExporting(true);
+    setMessage(null);
+    try {
+      const [invoices, settings] = await Promise.all([
+        api.getInvoices(),
+        api.getSettings(),
+      ]);
+
+      const filtered = filterByDateRange(invoices, dateFrom, dateTo);
+      const taxRate = settings.taxRate || 0.08;
+      const feePercent = settings.sellingFeePercent || 0;
+      const feeFixed = settings.sellingFeeFixed || 0;
+
+      // Group by year
+      const yearlyData = {};
+
+      for (const inv of filtered) {
+        const invoiceData = await api.getInvoice(inv.id);
+        const date = new Date(inv.invoiceDate || inv.createdAt);
+        const year = date.getFullYear().toString();
+
+        if (!yearlyData[year]) {
+          yearlyData[year] = {
+            revenue: 0,
+            costs: 0,
+            taxCollected: 0,
+            fees: 0,
+            invoiceCount: 0,
+            paidCount: 0,
+            collected: 0
+          };
+        }
+
+        let subtotal = 0;
+        let itemCosts = 0;
+
+        (invoiceData.items || []).forEach(item => {
+          const lineTotal = (parseFloat(item.price) || 0) * (item.quantity || 0);
+          const lineCost = (parseFloat(item.itemCost) || 0) * (item.quantity || 0);
+          subtotal += lineTotal;
+          itemCosts += lineCost;
+        });
+
+        const total = parseFloat(inv.total) || 0;
+        const taxAmount = total - subtotal;
+        const fees = roundMoney((subtotal * feePercent / 100) + (subtotal > 0 ? feeFixed : 0));
+
+        yearlyData[year].revenue += total;
+        yearlyData[year].costs += itemCosts;
+        yearlyData[year].taxCollected += taxAmount;
+        yearlyData[year].fees += fees;
+        yearlyData[year].invoiceCount += 1;
+
+        if (inv.paymentStatus === 'paid') {
+          yearlyData[year].paidCount += 1;
+          yearlyData[year].collected += total;
+        }
+      }
+
+      const rows = [
+        ['ANNUAL SUMMARY REPORT'],
+        [`Generated: ${new Date().toLocaleDateString()}`],
+        [`Date Range: ${getDateRangeLabel()}`],
+        [''],
+        ['Year', 'Invoices', 'Paid', 'Gross Revenue', 'Collected', 'Item Costs', 'Fees', 'Tax Collected', 'Net Profit'],
+      ];
+
+      Object.entries(yearlyData)
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .forEach(([year, data]) => {
+          const profit = roundMoney(data.revenue - data.costs - data.fees);
+          rows.push([
+            year,
+            data.invoiceCount,
+            data.paidCount,
+            `$${data.revenue.toFixed(2)}`,
+            `$${data.collected.toFixed(2)}`,
+            `$${data.costs.toFixed(2)}`,
+            `$${data.fees.toFixed(2)}`,
+            `$${data.taxCollected.toFixed(2)}`,
+            `$${profit.toFixed(2)}`
+          ]);
+        });
+
+      downloadCSV(rows.map(r => r.join(',')).join('\n'), `annual-summary-${new Date().toISOString().split('T')[0]}.csv`);
+      setMessage({ type: 'success', text: `Generated Annual Summary for ${filtered.length} invoices` });
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: 'error', text: 'Failed to generate Annual Summary' });
+    }
+    setExporting(false);
+  };
+
   // Generate selected report
   const generateReport = () => {
     switch (selectedReport) {
@@ -531,6 +722,8 @@ export default function ExportData() {
       case 'inventory': return generateInventoryValue();
       case 'client': return generateClientRevenue();
       case 'tax': return generateTaxReport();
+      case 'quarterly-tax': return generateQuarterlyTax();
+      case 'annual': return generateAnnualSummary();
       case 'sales': return generateSalesByItem();
       default:
         setMessage({ type: 'error', text: 'Please select a report type' });
@@ -572,9 +765,9 @@ export default function ExportData() {
       </div>
 
       {/* Report Templates Section */}
-      <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '2px solid #e0e0e0' }}>
-        <h3 style={{ marginBottom: '1rem', color: '#2c3e50' }}>Report Templates</h3>
-        <p style={{ color: '#666', marginBottom: '1rem', fontSize: '0.9rem' }}>
+      <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '2px solid var(--border-color, #e0e0e0)' }}>
+        <h3 style={{ marginBottom: '1rem' }}>Report Templates</h3>
+        <p style={{ color: 'var(--text-muted, #666)', marginBottom: '1rem', fontSize: '0.9rem' }}>
           Generate detailed reports with customizable date ranges.
         </p>
 
@@ -584,49 +777,94 @@ export default function ExportData() {
             <select
               value={selectedReport}
               onChange={(e) => setSelectedReport(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+              style={{ width: '100%' }}
             >
               <option value="">-- Select a Report --</option>
-              <option value="profit">Profit Analysis</option>
-              <option value="inventory">Inventory Value</option>
-              <option value="client">Client Revenue Summary</option>
-              <option value="tax">Tax Report</option>
-              <option value="sales">Sales by Item</option>
+              <optgroup label="Financial">
+                <option value="profit">Profit Analysis</option>
+                <option value="annual">Annual Summary</option>
+                <option value="client">Client Revenue Summary</option>
+              </optgroup>
+              <optgroup label="Tax">
+                <option value="tax">Tax Report (Monthly)</option>
+                <option value="quarterly-tax">Quarterly Tax Summary</option>
+              </optgroup>
+              <optgroup label="Inventory & Sales">
+                <option value="inventory">Inventory Value</option>
+                <option value="sales">Sales by Item</option>
+              </optgroup>
             </select>
-          </div>
-          <div className="form-group" style={{ flex: 1 }}>
-            <label>From Date</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
-            />
-          </div>
-          <div className="form-group" style={{ flex: 1 }}>
-            <label>To Date</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
-            />
           </div>
         </div>
 
+        {/* Date Range Selection */}
+        <div style={{
+          marginBottom: '1rem',
+          padding: '1rem',
+          background: 'var(--bg-tertiary, #f8f9fa)',
+          borderRadius: '8px',
+          border: '1px solid var(--border-color, #ddd)'
+        }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={allTime}
+              onChange={(e) => {
+                setAllTime(e.target.checked);
+                if (e.target.checked) {
+                  setDateFrom('');
+                  setDateTo('');
+                }
+              }}
+              style={{ width: '18px', height: '18px' }}
+            />
+            <strong>All Time</strong>
+            <small style={{ color: 'var(--text-muted, #888)' }}>Include all invoices regardless of date</small>
+          </label>
+
+          {!allTime && (
+            <div className="form-row">
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>From Date</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>To Date</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
         {selectedReport && (
-          <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f8f9fa', borderRadius: '4px', fontSize: '0.85rem' }}>
+          <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--bg-tertiary, #f8f9fa)', borderRadius: '4px', fontSize: '0.85rem', border: '1px solid var(--border-color, #ddd)' }}>
             {selectedReport === 'profit' && (
               <span><strong>Profit Analysis:</strong> Revenue, costs, fees, and profit margins. Shows overall summary and breakdown by item.</span>
             )}
+            {selectedReport === 'annual' && (
+              <span><strong>Annual Summary:</strong> Year-by-year breakdown of revenue, costs, fees, taxes, and net profit.</span>
+            )}
             {selectedReport === 'inventory' && (
-              <span><strong>Inventory Value:</strong> Current stock levels, cost values, and potential revenue. Includes raw materials status.</span>
+              <span><strong>Inventory Value:</strong> Current stock levels, cost values, and potential revenue for all items.</span>
             )}
             {selectedReport === 'client' && (
               <span><strong>Client Revenue:</strong> Total billed, collected, and outstanding amounts per client.</span>
             )}
             {selectedReport === 'tax' && (
-              <span><strong>Tax Report:</strong> Taxable vs non-taxable sales and tax collected, broken down by month.</span>
+              <span><strong>Tax Report:</strong> Taxable vs non-taxable sales and tax collected, broken down by month. Great for monthly tax filing.</span>
+            )}
+            {selectedReport === 'quarterly-tax' && (
+              <span><strong>Quarterly Tax:</strong> Tax summary by quarter for quarterly tax filings. Shows taxable sales, exempt sales, and tax collected/paid.</span>
             )}
             {selectedReport === 'sales' && (
               <span><strong>Sales by Item:</strong> Quantity sold, revenue, and average price for each item.</span>

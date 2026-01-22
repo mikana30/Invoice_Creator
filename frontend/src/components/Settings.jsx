@@ -9,6 +9,11 @@ function shouldShowBackupReminder() {
   return daysSince > 7;
 }
 
+// Get auto-backup setting from localStorage
+function getAutoBackupSetting() {
+  return localStorage.getItem('autoBackupOnClose') === 'true';
+}
+
 export default function Settings() {
   const [form, setForm] = useState({
     businessName: '',
@@ -31,6 +36,7 @@ export default function Settings() {
   const [message, setMessage] = useState(null);
   const [showBackupReminder, setShowBackupReminder] = useState(shouldShowBackupReminder());
   const [isRestoring, setIsRestoring] = useState(false);
+  const [autoBackupOnClose, setAutoBackupOnClose] = useState(getAutoBackupSetting());
   const fileInputRef = useRef(null);
   const restoreInputRef = useRef(null);
 
@@ -110,31 +116,46 @@ export default function Settings() {
     }
   };
 
+  // Create backup data object (used by both manual backup and auto-backup)
+  const createBackupData = async () => {
+    const [clients, items, invoices, settings] = await Promise.all([
+      api.getClients(),
+      api.getItems(),
+      api.getInvoices(),
+      api.getSettings(),
+    ]);
+
+    // For each invoice, get the full details with items
+    const fullInvoices = await Promise.all(
+      invoices.map(inv => api.getInvoice(inv.id))
+    );
+
+    // Get item components for each item
+    const itemsWithComponents = await Promise.all(
+      items.map(async (item) => {
+        try {
+          const components = await api.getItemComponents(item.id);
+          return { ...item, components };
+        } catch {
+          return { ...item, components: [] };
+        }
+      })
+    );
+
+    return {
+      exportDate: new Date().toISOString(),
+      version: '2.0',
+      settings,
+      clients,
+      items: itemsWithComponents,
+      invoices: fullInvoices,
+    };
+  };
+
   const handleBackupData = async () => {
     try {
       setMessage({ type: 'success', text: 'Preparing backup...' });
-      const [clients, items, invoices, inventoryProducts, settings] = await Promise.all([
-        api.getClients(),
-        api.getItems(),
-        api.getInvoices(),
-        api.getInventoryProducts(),
-        api.getSettings(),
-      ]);
-
-      // For each invoice, get the full details with items
-      const fullInvoices = await Promise.all(
-        invoices.map(inv => api.getInvoice(inv.id))
-      );
-
-      const backup = {
-        exportDate: new Date().toISOString(),
-        version: '1.0',
-        settings,
-        clients,
-        items,
-        inventoryProducts,
-        invoices: fullInvoices,
-      };
+      const backup = await createBackupData();
 
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -193,6 +214,78 @@ export default function Settings() {
 
   const dismissBackupReminder = () => {
     setShowBackupReminder(false);
+  };
+
+  // Handle auto-backup toggle
+  const handleAutoBackupToggle = async (enabled) => {
+    setAutoBackupOnClose(enabled);
+    localStorage.setItem('autoBackupOnClose', enabled.toString());
+
+    if (enabled) {
+      // Immediately create and store a backup in localStorage when enabled
+      try {
+        setMessage({ type: 'success', text: 'Creating auto-backup...' });
+        const backup = await createBackupData();
+        localStorage.setItem('autoBackupData', JSON.stringify(backup));
+        localStorage.setItem('autoBackupDate', new Date().toISOString());
+        setMessage({ type: 'success', text: 'Auto-backup enabled. Backup saved to browser storage.' });
+      } catch (err) {
+        setMessage({ type: 'error', text: 'Failed to create auto-backup: ' + err.message });
+      }
+    } else {
+      localStorage.removeItem('autoBackupData');
+      localStorage.removeItem('autoBackupDate');
+      setMessage({ type: 'success', text: 'Auto-backup disabled.' });
+    }
+  };
+
+  // Periodically save backup data when auto-backup is enabled
+  useEffect(() => {
+    if (!autoBackupOnClose) return;
+
+    const saveBackup = async () => {
+      try {
+        const backup = await createBackupData();
+        localStorage.setItem('autoBackupData', JSON.stringify(backup));
+        localStorage.setItem('autoBackupDate', new Date().toISOString());
+      } catch (err) {
+        console.warn('Auto-backup failed:', err);
+      }
+    };
+
+    // Save backup every 5 minutes when auto-backup is enabled
+    const interval = setInterval(saveBackup, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [autoBackupOnClose]);
+
+  // Handle downloading the auto-backup from localStorage
+  const handleDownloadAutoBackup = () => {
+    const backupData = localStorage.getItem('autoBackupData');
+    const backupDate = localStorage.getItem('autoBackupDate');
+
+    if (!backupData) {
+      setMessage({ type: 'error', text: 'No auto-backup found. Enable auto-backup to create one.' });
+      return;
+    }
+
+    try {
+      const backup = JSON.parse(backupData);
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-autobackup-${backupDate?.split('T')[0] || 'unknown'}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      localStorage.setItem('lastBackupDate', Date.now().toString());
+      setShowBackupReminder(false);
+      setMessage({ type: 'success', text: 'Auto-backup downloaded!' });
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to download auto-backup: ' + err.message });
+    }
   };
 
   if (loading) return <div className="loading">Loading settings...</div>;
@@ -426,25 +519,63 @@ export default function Settings() {
         </div>
       </form>
 
-      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid #eee' }}>
+      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid var(--border-color, #eee)' }}>
         <h3>Data Backup & Restore</h3>
 
         {showBackupReminder && (
-          <div style={{ background: '#fff3cd', border: '1px solid #ffc107', padding: '1rem', borderRadius: '4px', marginBottom: '1rem' }}>
+          <div style={{ background: 'rgba(255, 193, 7, 0.1)', border: '1px solid #ffc107', padding: '1rem', borderRadius: '4px', marginBottom: '1rem' }}>
             <strong>Backup Reminder:</strong> It's been a while since your last backup. Consider downloading a backup to protect your data.
             <button
               onClick={dismissBackupReminder}
-              style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}
+              style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: 'inherit' }}
             >
               ×
             </button>
           </div>
         )}
 
-        <p style={{ color: '#666', marginBottom: '1rem' }}>
+        <p style={{ color: 'var(--text-muted, #666)', marginBottom: '1rem' }}>
           Download a complete backup of your data including clients, items, invoices, and settings.
           Store this file in a safe place to protect against data loss.
         </p>
+
+        {/* Auto-backup toggle */}
+        <div style={{
+          background: 'var(--bg-tertiary, #f5f5f5)',
+          padding: '1rem',
+          borderRadius: '8px',
+          marginBottom: '1rem',
+          border: '1px solid var(--border-color, #ddd)'
+        }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={autoBackupOnClose}
+              onChange={(e) => handleAutoBackupToggle(e.target.checked)}
+              style={{ width: '18px', height: '18px' }}
+            />
+            <div>
+              <strong>Auto-Backup</strong>
+              <small style={{ display: 'block', color: 'var(--text-muted, #888)' }}>
+                Automatically saves backup to browser storage every 5 minutes
+              </small>
+            </div>
+          </label>
+          {autoBackupOnClose && localStorage.getItem('autoBackupDate') && (
+            <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-color, #ddd)' }}>
+              <small style={{ color: 'var(--text-muted, #888)' }}>
+                Last auto-backup: {new Date(localStorage.getItem('autoBackupDate')).toLocaleString()}
+              </small>
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={handleDownloadAutoBackup}
+                style={{ marginLeft: '1rem' }}
+              >
+                Download Auto-Backup
+              </button>
+            </div>
+          )}
+        </div>
 
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <button className="btn btn-success" onClick={handleBackupData}>
@@ -470,7 +601,7 @@ export default function Settings() {
           </div>
         </div>
 
-        <p style={{ color: '#888', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+        <p style={{ color: 'var(--text-muted, #888)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
           Tip: Create regular backups, especially before major updates. Restore will replace ALL data (clients, items, invoices, settings).
         </p>
       </div>

@@ -130,14 +130,12 @@ export const api = {
     return res.json();
   },
 
-  // Item Components (Bill of Materials)
-  async getAllItemComponents() {
-    const res = await fetch(`${API_BASE}/item-components`);
-    return res.json();
-  },
-
+  // Item Components (unified - items can contain other items)
   async getItemComponents(itemId) {
     const res = await fetch(`${API_BASE}/items/${itemId}/components`);
+    if (!res.ok) {
+      throw new Error('Failed to load components');
+    }
     return res.json();
   },
 
@@ -154,47 +152,17 @@ export const api = {
     return res.json();
   },
 
-  // Inventory Products (shared inventory)
-  async getInventoryProducts() {
-    const res = await fetch(`${API_BASE}/inventory-products`);
-    return res.json();
-  },
-
-  async createInventoryProduct(product) {
-    const res = await fetch(`${API_BASE}/inventory-products`, {
+  // Quick create a component item (for inline creation in dropdowns)
+  async createQuickComponent(component) {
+    const res = await fetch(`${API_BASE}/items/quick-component`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(product),
+      body: JSON.stringify(component),
     });
     if (!res.ok) {
       const error = await res.json();
-      throw new Error(error.message || 'Failed to create inventory product');
+      throw new Error(error.message || 'Failed to create component');
     }
-    return res.json();
-  },
-
-  async updateInventoryProduct(id, product) {
-    const res = await fetch(`${API_BASE}/inventory-products/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(product),
-    });
-    return res.json();
-  },
-
-  async deleteInventoryProduct(id) {
-    const res = await fetch(`${API_BASE}/inventory-products/${id}`, {
-      method: 'DELETE',
-    });
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.message || 'Failed to delete inventory product');
-    }
-    return res.json();
-  },
-
-  async getInventoryProductItems(id) {
-    const res = await fetch(`${API_BASE}/inventory-products/${id}/items`);
     return res.json();
   },
 

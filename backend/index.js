@@ -158,97 +158,182 @@ app.delete('/clients/:id', async (req, res) => {
   }
 });
 
-// Item routes
+// Helper: Calculate item cost from components (recursive)
+async function calculateItemCost(db, itemId, visited = new Set()) {
+  // Prevent infinite loops from circular references
+  if (visited.has(itemId)) return 0;
+  visited.add(itemId);
+
+  const components = await db.all(
+    'SELECT componentItemId, quantityNeeded FROM item_components WHERE parentItemId = ?',
+    [itemId]
+  );
+
+  if (components.length === 0) {
+    // No components - use item's own cost
+    const item = await db.get('SELECT cost FROM items WHERE id = ?', [itemId]);
+    return item ? parseFloat(item.cost) || 0 : 0;
+  }
+
+  // Sum up component costs
+  let totalCost = 0;
+  for (const comp of components) {
+    const componentCost = await calculateItemCost(db, comp.componentItemId, new Set(visited));
+    totalCost += componentCost * comp.quantityNeeded;
+  }
+  return totalCost;
+}
+
+// Item routes - unified system where everything is an item
 app.get('/items', async (req, res) => {
-  const db = await openDb();
-  const items = await db.all(`
-    SELECT i.*, ip.name as baseInventoryName, ip.quantity as baseInventoryQty
-    FROM items i
-    LEFT JOIN inventory_products ip ON i.baseInventoryId = ip.id
-    ORDER BY i.name
-  `);
-  res.json(items);
+  try {
+    const db = await openDb();
+    const items = await db.all('SELECT * FROM items ORDER BY name');
+
+    // For each item, get its components count and calculated cost
+    for (const item of items) {
+      const componentCount = await db.get(
+        'SELECT COUNT(*) as count FROM item_components WHERE parentItemId = ?',
+        [item.id]
+      );
+      item.componentCount = componentCount.count;
+
+      // Calculate cost from components if it has any
+      if (componentCount.count > 0) {
+        item.calculatedCost = await calculateItemCost(db, item.id);
+      }
+    }
+
+    res.json(items);
+  } catch (error) {
+    console.error('Error loading items:', error);
+    res.status(500).json({ message: 'Failed to load items' });
+  }
 });
 
 app.get('/items/search', async (req, res) => {
   const { q } = req.query;
-  const db = await openDb();
-  // Only return active items for autocomplete
-  const items = await db.all(
-    `SELECT i.*, ip.name as baseInventoryName, ip.quantity as baseInventoryQty
-     FROM items i
-     LEFT JOIN inventory_products ip ON i.baseInventoryId = ip.id
-     WHERE i.name LIKE ? AND (i.active = 1 OR i.active IS NULL)
-     ORDER BY i.name LIMIT 10`,
-    [`%${q || ''}%`]
-  );
-  res.json(items);
+  try {
+    const db = await openDb();
+    // Only return active items for autocomplete
+    const items = await db.all(
+      `SELECT * FROM items
+       WHERE name LIKE ? AND (active = 1 OR active IS NULL)
+       ORDER BY name LIMIT 15`,
+      [`%${q || ''}%`]
+    );
+    res.json(items);
+  } catch (error) {
+    console.error('Error searching items:', error);
+    res.status(500).json({ message: 'Failed to search items' });
+  }
 });
 
 app.post('/items', async (req, res) => {
-  const { name, price, cost = 0, inventory = 0, reorderLevel = 0, baseInventoryId = null } = req.body;
+  const { name, price = 0, cost = 0, inventory = 0, reorderLevel = 0, components = [] } = req.body;
 
-  // Validate inputs
-  const priceError = validatePositiveNumber(price, 'Price');
-  if (priceError) return res.status(400).json({ message: priceError });
-  const costError = validatePositiveNumber(cost, 'Cost');
-  if (costError) return res.status(400).json({ message: costError });
-
-  // Only validate inventory if not using shared inventory
-  if (!baseInventoryId) {
-    const invError = validatePositiveInteger(inventory, 'Inventory');
-    if (invError) return res.status(400).json({ message: invError });
+  if (!name || !name.trim()) {
+    return res.status(400).json({ message: 'Item name is required' });
   }
-
-  // When using shared inventory, ignore local inventory/reorderLevel
-  const finalInventory = baseInventoryId ? 0 : parseInt(inventory);
-  const finalReorderLevel = baseInventoryId ? 0 : (parseInt(reorderLevel) || 0);
 
   const db = await openDb();
   try {
+    // Create the item
     const result = await db.run(
-      'INSERT INTO items (name, price, cost, inventory, reorderLevel, baseInventoryId) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, parseFloat(price), parseFloat(cost), finalInventory, finalReorderLevel, baseInventoryId]
+      'INSERT INTO items (name, price, cost, inventory, reorderLevel, active) VALUES (?, ?, ?, ?, ?, 1)',
+      [name.trim(), parseFloat(price) || 0, parseFloat(cost) || 0, parseInt(inventory) || 0, parseInt(reorderLevel) || 0]
     );
-    res.json({ id: result.lastID, name, price: parseFloat(price), cost: parseFloat(cost), inventory: finalInventory, reorderLevel: finalReorderLevel, baseInventoryId });
+    const itemId = result.lastID;
+
+    // Add components if provided
+    if (components.length > 0) {
+      for (const comp of components) {
+        if (comp.componentItemId && comp.quantityNeeded > 0) {
+          await db.run(
+            'INSERT INTO item_components (parentItemId, componentItemId, quantityNeeded) VALUES (?, ?, ?)',
+            [itemId, comp.componentItemId, comp.quantityNeeded]
+          );
+        }
+      }
+    }
+
+    // Return the created item with calculated cost
+    const newItem = await db.get('SELECT * FROM items WHERE id = ?', [itemId]);
+    if (components.length > 0) {
+      newItem.calculatedCost = await calculateItemCost(db, itemId);
+    }
+
+    res.json(newItem);
   } catch (error) {
     if (error.code === 'SQLITE_CONSTRAINT') {
-      // Item exists, return existing item
-      const existing = await db.get('SELECT * FROM items WHERE name = ?', [name]);
+      // Item already exists - return it
+      const existing = await db.get('SELECT * FROM items WHERE name = ?', [name.trim()]);
       res.json(existing);
     } else {
-      res.status(500).json({ message: 'Error creating item' });
+      console.error('Error creating item:', error);
+      res.status(500).json({ message: 'Failed to create item' });
     }
   }
 });
 
 app.put('/items/:id', async (req, res) => {
-  const { name, price, cost = 0, inventory = 0, reorderLevel = 0, baseInventoryId = null } = req.body;
+  const { name, price = 0, cost = 0, inventory = 0, reorderLevel = 0, components } = req.body;
   const { id } = req.params;
 
-  // When using shared inventory, ignore local inventory/reorderLevel
-  const finalInventory = baseInventoryId ? 0 : parseInt(inventory) || 0;
-  const finalReorderLevel = baseInventoryId ? 0 : (parseInt(reorderLevel) || 0);
+  try {
+    const db = await openDb();
 
-  const db = await openDb();
-  await db.run(
-    'UPDATE items SET name = ?, price = ?, cost = ?, inventory = ?, reorderLevel = ?, baseInventoryId = ? WHERE id = ?',
-    [name, parseFloat(price), parseFloat(cost), finalInventory, finalReorderLevel, baseInventoryId, id]
-  );
-  res.json({ message: 'Item updated' });
+    // Update the item
+    await db.run(
+      'UPDATE items SET name = ?, price = ?, cost = ?, inventory = ?, reorderLevel = ? WHERE id = ?',
+      [name, parseFloat(price) || 0, parseFloat(cost) || 0, parseInt(inventory) || 0, parseInt(reorderLevel) || 0, id]
+    );
+
+    // Update components if provided
+    if (components !== undefined) {
+      // Clear existing components
+      await db.run('DELETE FROM item_components WHERE parentItemId = ?', [id]);
+
+      // Add new components
+      for (const comp of components || []) {
+        if (comp.componentItemId && comp.quantityNeeded > 0) {
+          await db.run(
+            'INSERT INTO item_components (parentItemId, componentItemId, quantityNeeded) VALUES (?, ?, ?)',
+            [id, comp.componentItemId, comp.quantityNeeded]
+          );
+        }
+      }
+    }
+
+    res.json({ message: 'Item updated' });
+  } catch (error) {
+    console.error('Error updating item:', error);
+    res.status(500).json({ message: 'Failed to update item' });
+  }
 });
 
 app.delete('/items/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const db = await openDb();
+
     // Check if item is used in any invoices
     const invoiceCount = await db.get('SELECT COUNT(*) as count FROM invoice_items WHERE itemId = ?', [id]);
     if (invoiceCount.count > 0) {
       return res.status(400).json({
-        message: `Cannot delete: this item is used in ${invoiceCount.count} invoice(s). Historical data would be lost.`
+        message: `Cannot delete: this item is used in ${invoiceCount.count} invoice(s).`
       });
     }
+
+    // Check if item is used as a component of other items
+    const componentCount = await db.get('SELECT COUNT(*) as count FROM item_components WHERE componentItemId = ?', [id]);
+    if (componentCount.count > 0) {
+      return res.status(400).json({
+        message: `Cannot delete: this item is used as a component in ${componentCount.count} other item(s).`
+      });
+    }
+
+    // Delete the item (item_components with this as parent will cascade delete)
     await db.run('DELETE FROM items WHERE id = ?', [id]);
     res.json({ message: 'Item deleted' });
   } catch (error) {
@@ -271,115 +356,84 @@ app.patch('/items/:id/active', async (req, res) => {
   }
 });
 
-// Inventory Products routes (shared inventory)
-app.get('/inventory-products', async (req, res) => {
-  const db = await openDb();
-  const products = await db.all('SELECT * FROM inventory_products ORDER BY name');
-  res.json(products);
-});
-
-app.post('/inventory-products', async (req, res) => {
-  const { name, quantity = 0, reorderLevel = 0 } = req.body;
-  const db = await openDb();
-  try {
-    const result = await db.run(
-      'INSERT INTO inventory_products (name, quantity, reorderLevel) VALUES (?, ?, ?)',
-      [name, quantity, reorderLevel]
-    );
-    res.json({ id: result.lastID, name, quantity, reorderLevel });
-  } catch (error) {
-    if (error.code === 'SQLITE_CONSTRAINT') {
-      res.status(400).json({ message: 'Inventory product with this name already exists' });
-    } else {
-      res.status(500).json({ message: 'Error creating inventory product' });
-    }
-  }
-});
-
-app.put('/inventory-products/:id', async (req, res) => {
-  const { name, quantity = 0, reorderLevel = 0 } = req.body;
-  const { id } = req.params;
-  const db = await openDb();
-  await db.run(
-    'UPDATE inventory_products SET name = ?, quantity = ?, reorderLevel = ? WHERE id = ?',
-    [name, quantity, reorderLevel, id]
-  );
-  res.json({ message: 'Inventory product updated' });
-});
-
-app.delete('/inventory-products/:id', async (req, res) => {
-  const { id } = req.params;
-  const db = await openDb();
-  // Check if any items are linked to this inventory product
-  const linkedItems = await db.get('SELECT COUNT(*) as count FROM items WHERE baseInventoryId = ?', [id]);
-  if (linkedItems.count > 0) {
-    return res.status(400).json({ message: 'Cannot delete: items are linked to this inventory' });
-  }
-  await db.run('DELETE FROM inventory_products WHERE id = ?', [id]);
-  res.json({ message: 'Inventory product deleted' });
-});
-
-// Get items linked to a specific inventory product
-app.get('/inventory-products/:id/items', async (req, res) => {
-  const { id } = req.params;
-  const db = await openDb();
-  const items = await db.all('SELECT * FROM items WHERE baseInventoryId = ?', [id]);
-  res.json(items);
-});
-
-// Item Components routes (Bill of Materials / Recipes)
-app.get('/item-components', async (req, res) => {
-  const db = await openDb();
-  const components = await db.all(`
-    SELECT ic.*, ip.name as inventoryProductName, ip.quantity as availableQty, i.name as itemName
-    FROM item_components ic
-    JOIN inventory_products ip ON ic.inventoryProductId = ip.id
-    JOIN items i ON ic.itemId = i.id
-  `);
-  res.json(components);
-});
-
+// Get components for an item
 app.get('/items/:id/components', async (req, res) => {
   const { id } = req.params;
-  const db = await openDb();
-  const components = await db.all(`
-    SELECT ic.*, ip.name as inventoryProductName, ip.quantity as availableQty
-    FROM item_components ic
-    JOIN inventory_products ip ON ic.inventoryProductId = ip.id
-    WHERE ic.itemId = ?
-  `, [id]);
-  res.json(components);
+  try {
+    const db = await openDb();
+    const components = await db.all(`
+      SELECT ic.id, ic.componentItemId, ic.quantityNeeded,
+             i.name as componentName, i.price as componentPrice, i.cost as componentCost, i.inventory as componentInventory
+      FROM item_components ic
+      JOIN items i ON ic.componentItemId = i.id
+      WHERE ic.parentItemId = ?
+    `, [id]);
+    res.json(components);
+  } catch (error) {
+    console.error('Error loading components:', error);
+    res.status(500).json({ message: 'Failed to load components' });
+  }
 });
 
+// Update components for an item
 app.put('/items/:id/components', async (req, res) => {
-  const { components } = req.body; // Array of { inventoryProductId, quantityNeeded }
   const { id } = req.params;
-  const db = await openDb();
+  const { components } = req.body;
 
   try {
-    await db.run('BEGIN IMMEDIATE');
+    const db = await openDb();
 
-    // Delete existing components for this item
-    await db.run('DELETE FROM item_components WHERE itemId = ?', [id]);
+    // Clear existing components
+    await db.run('DELETE FROM item_components WHERE parentItemId = ?', [id]);
 
-    // Insert new components
+    // Add new components
     for (const comp of components || []) {
-      if (comp.inventoryProductId && comp.quantityNeeded > 0) {
+      if (comp.componentItemId && comp.quantityNeeded > 0) {
         await db.run(
-          'INSERT INTO item_components (itemId, inventoryProductId, quantityNeeded) VALUES (?, ?, ?)',
-          [id, comp.inventoryProductId, comp.quantityNeeded]
+          'INSERT INTO item_components (parentItemId, componentItemId, quantityNeeded) VALUES (?, ?, ?)',
+          [id, comp.componentItemId, comp.quantityNeeded]
         );
       }
     }
 
-    await db.run('COMMIT');
-    res.json({ message: 'Components updated' });
+    // Return updated calculated cost
+    const calculatedCost = await calculateItemCost(db, id);
+    res.json({ message: 'Components updated', calculatedCost });
   } catch (error) {
-    await db.run('ROLLBACK');
     console.error('Error updating components:', error);
     res.status(500).json({ message: 'Failed to update components' });
   }
 });
+
+// Quick create a component item (for inline creation in dropdowns)
+app.post('/items/quick-component', async (req, res) => {
+  const { name, cost = 0, inventory = 0 } = req.body;
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ message: 'Component name is required' });
+  }
+
+  try {
+    const db = await openDb();
+    const result = await db.run(
+      'INSERT INTO items (name, price, cost, inventory, reorderLevel, active) VALUES (?, 0, ?, ?, 0, 1)',
+      [name.trim(), parseFloat(cost) || 0, parseInt(inventory) || 0]
+    );
+
+    const newItem = await db.get('SELECT * FROM items WHERE id = ?', [result.lastID]);
+    res.json(newItem);
+  } catch (error) {
+    if (error.code === 'SQLITE_CONSTRAINT') {
+      // Already exists - return it
+      const existing = await db.get('SELECT * FROM items WHERE name = ?', [name.trim()]);
+      res.json(existing);
+    } else {
+      console.error('Error creating component:', error);
+      res.status(500).json({ message: 'Failed to create component' });
+    }
+  }
+});
+
 
 // Invoice routes
 app.get('/invoices', async (req, res) => {
@@ -411,6 +465,60 @@ app.get('/invoices/:id', async (req, res) => {
   }
 });
 
+// Helper: Recursively decrement inventory for an item and its components
+async function decrementInventory(db, itemId, quantity) {
+  // Get components for this item
+  const components = await db.all(
+    `SELECT ic.componentItemId, ic.quantityNeeded, i.name as componentName, i.inventory
+     FROM item_components ic
+     JOIN items i ON ic.componentItemId = i.id
+     WHERE ic.parentItemId = ?`,
+    [itemId]
+  );
+
+  if (components.length > 0) {
+    // Item has components - decrement each component's inventory (recursively)
+    for (const comp of components) {
+      const neededQty = comp.quantityNeeded * quantity;
+      await decrementInventory(db, comp.componentItemId, neededQty);
+    }
+  } else {
+    // No components - decrement this item's inventory directly
+    await db.run(
+      'UPDATE items SET inventory = inventory - ? WHERE id = ?',
+      [quantity, itemId]
+    );
+  }
+}
+
+// Helper: Recursively check inventory for an item and its components
+async function checkInventory(db, itemId, quantity, itemName) {
+  const components = await db.all(
+    `SELECT ic.componentItemId, ic.quantityNeeded, i.name as componentName, i.inventory
+     FROM item_components ic
+     JOIN items i ON ic.componentItemId = i.id
+     WHERE ic.parentItemId = ?`,
+    [itemId]
+  );
+
+  if (components.length > 0) {
+    // Item has components - check each recursively
+    for (const comp of components) {
+      const neededQty = comp.quantityNeeded * quantity;
+      const error = await checkInventory(db, comp.componentItemId, neededQty, comp.componentName);
+      if (error) return error;
+    }
+    return null;
+  } else {
+    // No components - check this item's inventory directly
+    const item = await db.get('SELECT inventory FROM items WHERE id = ?', [itemId]);
+    if (item && item.inventory < quantity) {
+      return `Insufficient inventory for "${itemName}". Available: ${item.inventory}, Needed: ${quantity}`;
+    }
+    return null;
+  }
+}
+
 app.post('/invoices', async (req, res) => {
   const { clientId, items, total, invoiceDate, notes } = req.body;
   const db = await openDb();
@@ -424,44 +532,19 @@ app.post('/invoices', async (req, res) => {
       if (priceError) return res.status(400).json({ message: priceError });
     }
 
-    // Start transaction with IMMEDIATE lock to prevent race conditions
+    // Start transaction
     await db.run('BEGIN IMMEDIATE');
 
     try {
       // Check inventory levels before creating invoice
       for (const item of items) {
-        const itemRecord = await db.get('SELECT id, name, inventory, baseInventoryId FROM items WHERE id = ?', [item.itemId]);
+        const itemRecord = await db.get('SELECT id, name, inventory FROM items WHERE id = ?', [item.itemId]);
         if (!itemRecord) continue;
 
-        // Check for recipe components first
-        const components = await db.all('SELECT ic.*, ip.name as productName, ip.quantity as availableQty FROM item_components ic JOIN inventory_products ip ON ic.inventoryProductId = ip.id WHERE ic.itemId = ?', [item.itemId]);
-
-        if (components.length > 0) {
-          // Item has recipe - check each component's inventory
-          for (const comp of components) {
-            const neededQty = comp.quantityNeeded * item.quantity;
-            if (comp.availableQty < neededQty) {
-              await db.run('ROLLBACK');
-              return res.status(400).json({
-                message: `Insufficient inventory for "${itemRecord.name}". Need ${neededQty} of "${comp.productName}" but only ${comp.availableQty} available.`
-              });
-            }
-          }
-        } else if (itemRecord.baseInventoryId) {
-          const invProduct = await db.get('SELECT name, quantity FROM inventory_products WHERE id = ?', [itemRecord.baseInventoryId]);
-          if (invProduct && invProduct.quantity < item.quantity) {
-            await db.run('ROLLBACK');
-            return res.status(400).json({
-              message: `Insufficient inventory for "${itemRecord.name}". Available: ${invProduct.quantity} (from ${invProduct.name}), Requested: ${item.quantity}`
-            });
-          }
-        } else {
-          if (itemRecord.inventory < item.quantity) {
-            await db.run('ROLLBACK');
-            return res.status(400).json({
-              message: `Insufficient inventory for "${itemRecord.name}". Available: ${itemRecord.inventory}, Requested: ${item.quantity}`
-            });
-          }
+        const inventoryError = await checkInventory(db, item.itemId, item.quantity, itemRecord.name);
+        if (inventoryError) {
+          await db.run('ROLLBACK');
+          return res.status(400).json({ message: inventoryError });
         }
       }
 
@@ -476,7 +559,7 @@ app.post('/invoices', async (req, res) => {
       dueDateObj.setDate(dueDateObj.getDate() + paymentTerms);
       const dueDate = dueDateObj.toISOString().split('T')[0];
 
-      // Get and increment sequence atomically within transaction
+      // Generate invoice number
       const seq = settings.invoiceNumberNextSequence || 1;
       const year = new Date().getFullYear();
       const invoiceNumber = `${prefix}-${year}-${String(seq).padStart(3, '0')}`;
@@ -499,35 +582,10 @@ app.post('/invoices', async (req, res) => {
           [invoiceId, item.itemId, item.quantity, item.price, item.taxExempt ? 1 : 0]
         );
 
-        // Get item to check if it uses shared inventory or has recipe components
-        const itemRecord = await db.get('SELECT baseInventoryId FROM items WHERE id = ?', [item.itemId]);
-        const components = await db.all('SELECT * FROM item_components WHERE itemId = ?', [item.itemId]);
-
-        if (components.length > 0) {
-          // Decrement each component's inventory
-          for (const comp of components) {
-            const decrementQty = comp.quantityNeeded * item.quantity;
-            await db.run(
-              'UPDATE inventory_products SET quantity = quantity - ? WHERE id = ?',
-              [decrementQty, comp.inventoryProductId]
-            );
-          }
-        } else if (itemRecord && itemRecord.baseInventoryId) {
-          // Decrement shared inventory
-          await db.run(
-            'UPDATE inventory_products SET quantity = quantity - ? WHERE id = ?',
-            [item.quantity, itemRecord.baseInventoryId]
-          );
-        } else {
-          // Decrement item's own inventory
-          await db.run(
-            'UPDATE items SET inventory = inventory - ? WHERE id = ?',
-            [item.quantity, item.itemId]
-          );
-        }
+        // Decrement inventory (recursively handles components)
+        await decrementInventory(db, item.itemId, item.quantity);
       }
 
-      // Commit transaction
       await db.run('COMMIT');
       res.json({ id: invoiceId, invoiceNumber });
 
@@ -546,6 +604,26 @@ app.post('/invoices', async (req, res) => {
   }
 });
 
+// Helper: Recursively restore inventory for an item and its components
+async function restoreInventory(db, itemId, quantity) {
+  const components = await db.all(
+    'SELECT componentItemId, quantityNeeded FROM item_components WHERE parentItemId = ?',
+    [itemId]
+  );
+
+  if (components.length > 0) {
+    for (const comp of components) {
+      const restoreQty = comp.quantityNeeded * quantity;
+      await restoreInventory(db, comp.componentItemId, restoreQty);
+    }
+  } else {
+    await db.run(
+      'UPDATE items SET inventory = inventory + ? WHERE id = ?',
+      [quantity, itemId]
+    );
+  }
+}
+
 app.put('/invoices/:id', async (req, res) => {
   const { id } = req.params;
   const { clientId, items, total, invoiceDate, dueDate, paymentStatus, amountPaid, notes } = req.body;
@@ -558,7 +636,7 @@ app.put('/invoices/:id', async (req, res) => {
       return res.status(404).json({ message: 'Invoice not found' });
     }
     if (existingInvoice.paymentStatus === 'voided') {
-      return res.status(400).json({ message: 'Cannot edit a voided invoice. Create a new invoice instead.' });
+      return res.status(400).json({ message: 'Cannot edit a voided invoice.' });
     }
 
     // Validate items
@@ -569,123 +647,62 @@ app.put('/invoices/:id', async (req, res) => {
       if (priceError) return res.status(400).json({ message: priceError });
     }
 
-    // Validate dates
-    if (invoiceDate && dueDate && new Date(invoiceDate) > new Date(dueDate)) {
-      return res.status(400).json({ message: 'Due date cannot be before invoice date' });
-    }
-
-    // Validate payment status consistency
-    const newTotal = parseFloat(total) || 0;
-    const newAmountPaid = parseFloat(amountPaid) || 0;
-    if (newAmountPaid > newTotal) {
-      return res.status(400).json({ message: `Amount paid ($${newAmountPaid.toFixed(2)}) cannot exceed total ($${newTotal.toFixed(2)})` });
-    }
-
     // Start transaction
     await db.run('BEGIN IMMEDIATE');
 
     try {
-      // Get old invoice items to calculate net inventory change
+      // Restore inventory from old items first
       const oldItems = await db.all('SELECT itemId, quantity FROM invoice_items WHERE invoiceId = ?', [id]);
-
-      // Build map of old quantities by itemId
-      const oldQtyMap = {};
-      for (const oi of oldItems) {
-        oldQtyMap[oi.itemId] = (oldQtyMap[oi.itemId] || 0) + oi.quantity;
+      for (const oldItem of oldItems) {
+        await restoreInventory(db, oldItem.itemId, oldItem.quantity);
       }
 
-      // Check if new quantities would cause negative inventory
+      // Check inventory for new items
       for (const item of items) {
-        const itemRecord = await db.get('SELECT id, name, inventory, baseInventoryId FROM items WHERE id = ?', [item.itemId]);
+        const itemRecord = await db.get('SELECT name FROM items WHERE id = ?', [item.itemId]);
         if (!itemRecord) continue;
 
-        const oldQty = oldQtyMap[item.itemId] || 0;
-        const netChange = item.quantity - oldQty;
-
-        if (netChange > 0) {
-          if (itemRecord.baseInventoryId) {
-            const invProduct = await db.get('SELECT name, quantity FROM inventory_products WHERE id = ?', [itemRecord.baseInventoryId]);
-            if (invProduct && invProduct.quantity < netChange) {
-              await db.run('ROLLBACK');
-              return res.status(400).json({
-                message: `Insufficient inventory for "${itemRecord.name}". Available: ${invProduct.quantity} (from ${invProduct.name}), Need additional: ${netChange}`
-              });
-            }
-          } else {
-            if (itemRecord.inventory < netChange) {
-              await db.run('ROLLBACK');
-              return res.status(400).json({
-                message: `Insufficient inventory for "${itemRecord.name}". Available: ${itemRecord.inventory}, Need additional: ${netChange}`
-              });
-            }
-          }
-        }
-      }
-
-      // Restore inventory from old items
-      for (const oldItem of oldItems) {
-        const itemRecord = await db.get('SELECT baseInventoryId FROM items WHERE id = ?', [oldItem.itemId]);
-        if (itemRecord && itemRecord.baseInventoryId) {
-          await db.run(
-            'UPDATE inventory_products SET quantity = quantity + ? WHERE id = ?',
-            [oldItem.quantity, itemRecord.baseInventoryId]
-          );
-        } else {
-          await db.run(
-            'UPDATE items SET inventory = inventory + ? WHERE id = ?',
-            [oldItem.quantity, oldItem.itemId]
-          );
+        const inventoryError = await checkInventory(db, item.itemId, item.quantity, itemRecord.name);
+        if (inventoryError) {
+          await db.run('ROLLBACK');
+          return res.status(400).json({ message: inventoryError });
         }
       }
 
       // Determine final amountPaid and paymentDate
-      let finalAmountPaid = newAmountPaid;
+      const newTotal = parseFloat(total) || 0;
+      let finalAmountPaid = parseFloat(amountPaid) || 0;
       if (paymentStatus === 'paid') {
-        finalAmountPaid = newTotal; // Auto-set to total when paid
+        finalAmountPaid = newTotal;
       } else if (paymentStatus === 'unpaid') {
-        finalAmountPaid = 0; // Reset when marked unpaid
+        finalAmountPaid = 0;
       }
 
       // Handle payment date
       let newPaymentDate = null;
-      if (paymentStatus === 'paid') {
-        // Set payment date if newly paid
-        if (existingInvoice.paymentStatus !== 'paid') {
-          newPaymentDate = new Date().toISOString().split('T')[0];
-        } else {
-          // Keep existing payment date
-          const currentInv = await db.get('SELECT paymentDate FROM invoices WHERE id = ?', [id]);
-          newPaymentDate = currentInv.paymentDate;
-        }
+      if (paymentStatus === 'paid' && existingInvoice.paymentStatus !== 'paid') {
+        newPaymentDate = new Date().toISOString().split('T')[0];
+      } else if (paymentStatus === 'paid') {
+        const currentInv = await db.get('SELECT paymentDate FROM invoices WHERE id = ?', [id]);
+        newPaymentDate = currentInv.paymentDate;
       }
 
+      // Update invoice
       await db.run(
         `UPDATE invoices SET clientId = ?, total = ?, invoiceDate = ?, dueDate = ?,
          paymentStatus = ?, amountPaid = ?, notes = ?, paymentDate = ? WHERE id = ?`,
         [clientId, total, invoiceDate, dueDate, paymentStatus || 'unpaid', finalAmountPaid, notes || null, newPaymentDate, id]
       );
 
+      // Replace invoice items
       await db.run('DELETE FROM invoice_items WHERE invoiceId = ?', [id]);
 
-      // Insert new items and decrement inventory
       for (const item of items) {
         await db.run(
           'INSERT INTO invoice_items (invoiceId, itemId, quantity, price, taxExempt) VALUES (?, ?, ?, ?, ?)',
           [id, item.itemId, item.quantity, item.price, item.taxExempt ? 1 : 0]
         );
-
-        const itemRecord = await db.get('SELECT baseInventoryId FROM items WHERE id = ?', [item.itemId]);
-        if (itemRecord && itemRecord.baseInventoryId) {
-          await db.run(
-            'UPDATE inventory_products SET quantity = quantity - ? WHERE id = ?',
-            [item.quantity, itemRecord.baseInventoryId]
-          );
-        } else {
-          await db.run(
-            'UPDATE items SET inventory = inventory - ? WHERE id = ?',
-            [item.quantity, item.itemId]
-          );
-        }
+        await decrementInventory(db, item.itemId, item.quantity);
       }
 
       await db.run('COMMIT');
@@ -760,7 +777,6 @@ app.patch('/invoices/:id/void', async (req, res) => {
   const db = await openDb();
 
   try {
-    // Check if already voided
     const invoice = await db.get('SELECT paymentStatus FROM invoices WHERE id = ?', [id]);
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });
@@ -769,36 +785,13 @@ app.patch('/invoices/:id/void', async (req, res) => {
       return res.status(400).json({ message: 'Invoice is already voided' });
     }
 
-    // Start transaction
     await db.run('BEGIN IMMEDIATE');
 
     try {
-      // Restore inventory from invoice items
+      // Restore inventory from invoice items (recursively handles components)
       const items = await db.all('SELECT itemId, quantity FROM invoice_items WHERE invoiceId = ?', [id]);
       for (const item of items) {
-        const itemRecord = await db.get('SELECT baseInventoryId FROM items WHERE id = ?', [item.itemId]);
-        const components = await db.all('SELECT * FROM item_components WHERE itemId = ?', [item.itemId]);
-
-        if (components.length > 0) {
-          // Restore each component's inventory
-          for (const comp of components) {
-            const restoreQty = comp.quantityNeeded * item.quantity;
-            await db.run(
-              'UPDATE inventory_products SET quantity = quantity + ? WHERE id = ?',
-              [restoreQty, comp.inventoryProductId]
-            );
-          }
-        } else if (itemRecord && itemRecord.baseInventoryId) {
-          await db.run(
-            'UPDATE inventory_products SET quantity = quantity + ? WHERE id = ?',
-            [item.quantity, itemRecord.baseInventoryId]
-          );
-        } else {
-          await db.run(
-            'UPDATE items SET inventory = inventory + ? WHERE id = ?',
-            [item.quantity, item.itemId]
-          );
-        }
+        await restoreInventory(db, item.itemId, item.quantity);
       }
 
       // Mark invoice as voided
@@ -824,43 +817,19 @@ app.delete('/invoices/:id', async (req, res) => {
   const db = await openDb();
 
   try {
-    // Check if invoice exists
     const invoice = await db.get('SELECT paymentStatus FROM invoices WHERE id = ?', [id]);
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });
     }
 
-    // Start transaction
     await db.run('BEGIN IMMEDIATE');
 
     try {
-      // Restore inventory if not already voided
+      // Restore inventory if not already voided (recursively handles components)
       if (invoice.paymentStatus !== 'voided') {
         const items = await db.all('SELECT itemId, quantity FROM invoice_items WHERE invoiceId = ?', [id]);
         for (const item of items) {
-          const itemRecord = await db.get('SELECT baseInventoryId FROM items WHERE id = ?', [item.itemId]);
-          const components = await db.all('SELECT * FROM item_components WHERE itemId = ?', [item.itemId]);
-
-          if (components.length > 0) {
-            // Restore each component's inventory
-            for (const comp of components) {
-              const restoreQty = comp.quantityNeeded * item.quantity;
-              await db.run(
-                'UPDATE inventory_products SET quantity = quantity + ? WHERE id = ?',
-                [restoreQty, comp.inventoryProductId]
-              );
-            }
-          } else if (itemRecord && itemRecord.baseInventoryId) {
-            await db.run(
-              'UPDATE inventory_products SET quantity = quantity + ? WHERE id = ?',
-              [item.quantity, itemRecord.baseInventoryId]
-            );
-          } else if (itemRecord) {
-            await db.run(
-              'UPDATE items SET inventory = inventory + ? WHERE id = ?',
-              [item.quantity, item.itemId]
-            );
-          }
+          await restoreInventory(db, item.itemId, item.quantity);
         }
       }
 

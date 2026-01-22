@@ -23,22 +23,28 @@ async function initDb() {
       email TEXT
     );
 
-    CREATE TABLE IF NOT EXISTS inventory_products (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      quantity INTEGER DEFAULT 0,
-      reorderLevel INTEGER DEFAULT 0
-    );
-
+    -- Unified items table: raw materials, products, bundles - everything is an item
+    -- Any item can be sold directly AND/OR used as a component of another item
     CREATE TABLE IF NOT EXISTS items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
-      price REAL NOT NULL,
+      price REAL NOT NULL DEFAULT 0,
       cost REAL DEFAULT 0,
       inventory INTEGER DEFAULT 0,
       reorderLevel INTEGER DEFAULT 0,
-      baseInventoryId INTEGER,
-      FOREIGN KEY (baseInventoryId) REFERENCES inventory_products(id)
+      active INTEGER DEFAULT 1
+    );
+
+    -- Item components: items can contain other items (recursive/hierarchical)
+    -- Example: "Gift Basket" contains "Mirror" + "Candle x2" + "Basket"
+    -- And "Mirror" itself contains "Glass" + "Frame" + "Lights" etc.
+    CREATE TABLE IF NOT EXISTS item_components (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      parentItemId INTEGER NOT NULL,
+      componentItemId INTEGER NOT NULL,
+      quantityNeeded INTEGER NOT NULL DEFAULT 1,
+      FOREIGN KEY (parentItemId) REFERENCES items(id) ON DELETE CASCADE,
+      FOREIGN KEY (componentItemId) REFERENCES items(id) ON DELETE RESTRICT
     );
 
     CREATE TABLE IF NOT EXISTS invoices (
@@ -49,6 +55,8 @@ async function initDb() {
       dueDate TEXT,
       paymentStatus TEXT DEFAULT 'unpaid',
       amountPaid REAL DEFAULT 0,
+      paymentDate TEXT,
+      notes TEXT,
       createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
       total REAL,
       FOREIGN KEY (clientId) REFERENCES clients(id)
@@ -63,15 +71,6 @@ async function initDb() {
       taxExempt INTEGER DEFAULT 0,
       FOREIGN KEY (invoiceId) REFERENCES invoices(id),
       FOREIGN KEY (itemId) REFERENCES items(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS item_components (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      itemId INTEGER NOT NULL,
-      inventoryProductId INTEGER NOT NULL,
-      quantityNeeded INTEGER NOT NULL DEFAULT 1,
-      FOREIGN KEY (itemId) REFERENCES items(id) ON DELETE CASCADE,
-      FOREIGN KEY (inventoryProductId) REFERENCES inventory_products(id)
     );
 
     CREATE TABLE IF NOT EXISTS settings (
@@ -96,67 +95,12 @@ async function initDb() {
     INSERT OR IGNORE INTO settings (id) VALUES (1);
   `);
 
-  // Create inventory_products table if it doesn't exist (for existing databases)
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS inventory_products (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      quantity INTEGER DEFAULT 0,
-      reorderLevel INTEGER DEFAULT 0
-    );
-  `);
-
-  // Create item_components table if it doesn't exist (for existing databases)
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS item_components (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      itemId INTEGER NOT NULL,
-      inventoryProductId INTEGER NOT NULL,
-      quantityNeeded INTEGER NOT NULL DEFAULT 1,
-      FOREIGN KEY (itemId) REFERENCES items(id) ON DELETE CASCADE,
-      FOREIGN KEY (inventoryProductId) REFERENCES inventory_products(id)
-    );
-  `);
-
-  // Add columns if they don't exist (for existing databases)
+  // Add columns if they don't exist (for schema updates)
   const columnsToAdd = [
-    // Existing migrations
-    { table: 'clients', column: 'email', type: 'TEXT' },
-    { table: 'clients', column: 'street', type: 'TEXT' },
-    { table: 'clients', column: 'street2', type: 'TEXT' },
-    { table: 'clients', column: 'city', type: 'TEXT' },
-    { table: 'clients', column: 'state', type: 'TEXT' },
-    { table: 'clients', column: 'zip', type: 'TEXT' },
-    { table: 'invoices', column: 'invoiceDate', type: 'TEXT' },
-    { table: 'settings', column: 'businessStreet', type: 'TEXT' },
-    { table: 'settings', column: 'businessStreet2', type: 'TEXT' },
-    { table: 'settings', column: 'businessCity', type: 'TEXT' },
-    { table: 'settings', column: 'businessState', type: 'TEXT' },
-    { table: 'settings', column: 'businessZip', type: 'TEXT' },
-    { table: 'settings', column: 'bannerImage', type: 'TEXT' },
-    // Invoice enhancements
-    { table: 'invoices', column: 'invoiceNumber', type: 'TEXT' },
-    { table: 'invoices', column: 'dueDate', type: 'TEXT' },
-    { table: 'invoices', column: 'paymentStatus', type: "TEXT DEFAULT 'unpaid'" },
-    { table: 'invoices', column: 'amountPaid', type: 'REAL DEFAULT 0' },
-    // Item cost & inventory
+    { table: 'items', column: 'active', type: 'INTEGER DEFAULT 1' },
     { table: 'items', column: 'cost', type: 'REAL DEFAULT 0' },
     { table: 'items', column: 'inventory', type: 'INTEGER DEFAULT 0' },
     { table: 'items', column: 'reorderLevel', type: 'INTEGER DEFAULT 0' },
-    // Settings enhancements
-    { table: 'settings', column: 'invoiceNumberPrefix', type: "TEXT DEFAULT 'INV'" },
-    { table: 'settings', column: 'invoiceNumberNextSequence', type: 'INTEGER DEFAULT 1' },
-    { table: 'settings', column: 'defaultPaymentTerms', type: 'INTEGER DEFAULT 30' },
-    { table: 'settings', column: 'sellingFeePercent', type: 'REAL DEFAULT 0' },
-    { table: 'settings', column: 'sellingFeeFixed', type: 'REAL DEFAULT 0' },
-    // Shared inventory
-    { table: 'items', column: 'baseInventoryId', type: 'INTEGER' },
-    // Invoice notes/memo
-    { table: 'invoices', column: 'notes', type: 'TEXT' },
-    // Payment date tracking
-    { table: 'invoices', column: 'paymentDate', type: 'TEXT' },
-    // Item archive feature
-    { table: 'items', column: 'active', type: 'INTEGER DEFAULT 1' },
   ];
 
   for (const { table, column, type } of columnsToAdd) {
@@ -165,21 +109,16 @@ async function initDb() {
     } catch (e) { /* column already exists */ }
   }
 
-  // Add unique index on invoiceNumber to prevent duplicates
-  try {
-    await db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_invoiceNumber ON invoices(invoiceNumber)`);
-  } catch (e) { /* index already exists or invoiceNumber column doesn't exist yet */ }
-
-  // Performance indexes for queries at scale (1000+ invoices)
+  // Performance indexes
   const indexesToCreate = [
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_invoiceNumber ON invoices(invoiceNumber)',
     'CREATE INDEX IF NOT EXISTS idx_invoices_clientId ON invoices(clientId)',
     'CREATE INDEX IF NOT EXISTS idx_invoices_paymentStatus ON invoices(paymentStatus)',
     'CREATE INDEX IF NOT EXISTS idx_invoices_invoiceDate ON invoices(invoiceDate)',
-    'CREATE INDEX IF NOT EXISTS idx_invoices_paymentDate ON invoices(paymentDate)',
     'CREATE INDEX IF NOT EXISTS idx_invoice_items_invoiceId ON invoice_items(invoiceId)',
     'CREATE INDEX IF NOT EXISTS idx_invoice_items_itemId ON invoice_items(itemId)',
-    'CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name)',
-    'CREATE INDEX IF NOT EXISTS idx_items_name ON items(name)',
+    'CREATE INDEX IF NOT EXISTS idx_item_components_parentItemId ON item_components(parentItemId)',
+    'CREATE INDEX IF NOT EXISTS idx_item_components_componentItemId ON item_components(componentItemId)',
   ];
 
   for (const sql of indexesToCreate) {

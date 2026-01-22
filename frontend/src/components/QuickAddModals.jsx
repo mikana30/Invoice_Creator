@@ -72,7 +72,6 @@ export function QuickAddClientModal({ initialName, onSave, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate name before submission
     if (!form.name || !form.name.trim()) {
       setError('Client name is required');
       return;
@@ -156,6 +155,8 @@ export function QuickAddClientModal({ initialName, onSave, onClose }) {
                 type="text"
                 value={form.state}
                 onChange={(e) => setForm({ ...form, state: e.target.value })}
+                maxLength={2}
+                placeholder="TX"
               />
             </div>
             <div className="form-group" style={{ flex: 1 }}>
@@ -164,20 +165,21 @@ export function QuickAddClientModal({ initialName, onSave, onClose }) {
                 type="text"
                 value={form.zip}
                 onChange={(e) => setForm({ ...form, zip: e.target.value })}
+                maxLength={10}
               />
             </div>
           </div>
 
           <div className="form-row">
-            <div className="form-group">
+            <div className="form-group" style={{ flex: 1 }}>
               <label>Phone</label>
               <input
-                type="text"
+                type="tel"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
               />
             </div>
-            <div className="form-group">
+            <div className="form-group" style={{ flex: 1 }}>
               <label>Email</label>
               <input
                 type="email"
@@ -202,106 +204,7 @@ export function QuickAddClientModal({ initialName, onSave, onClose }) {
 }
 
 // ============================================
-// Quick Add Inventory Product Modal
-// ============================================
-export function QuickAddInventoryProductModal({ initialName, onSave, onClose }) {
-  useEscapeKey(onClose);
-
-  const [form, setForm] = useState({
-    name: initialName || '',
-    quantity: 0,
-    reorderLevel: 0,
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-
-    try {
-      const newProduct = await api.createInventoryProduct({
-        name: form.name,
-        quantity: parseInt(form.quantity) || 0,
-        reorderLevel: parseInt(form.reorderLevel) || 0,
-      });
-      onSave(newProduct);
-    } catch (err) {
-      setError(err.message || 'Failed to create inventory product');
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div style={modalOverlayStyle} onClick={onClose}>
-      <div style={{ ...modalContentStyle, maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
-        <div style={modalHeaderStyle}>
-          <h3 style={{ margin: 0 }}>Quick Add Inventory Product</h3>
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted, #6e7681)' }}
-          >
-            &times;
-          </button>
-        </div>
-
-        {error && (
-          <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Product Name *</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-              autoFocus
-              placeholder="e.g., Wood, Ribbon, Bell"
-            />
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label>Starting Quantity</label>
-              <input
-                type="number"
-                min="0"
-                value={form.quantity}
-                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-              />
-            </div>
-            <div className="form-group">
-              <label>Reorder Level</label>
-              <input
-                type="number"
-                min="0"
-                value={form.reorderLevel}
-                onChange={(e) => setForm({ ...form, reorderLevel: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="btn-group" style={{ marginTop: '1rem' }}>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Creating...' : 'Create Product'}
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ============================================
-// Quick Add Item Modal (with Recipe support)
+// Quick Add Item Modal (simplified unified system)
 // ============================================
 export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }) {
   useEscapeKey(onClose);
@@ -311,41 +214,55 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
     price: initialPrice?.toString() || '',
     cost: '',
     inventory: '',
-    reorderLevel: '',
-    baseInventoryId: '',
   });
   const [components, setComponents] = useState([]);
-  const [inventoryProducts, setInventoryProducts] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [showNewProductModal, setShowNewProductModal] = useState(false);
-  const [newProductForIndex, setNewProductForIndex] = useState(null);
 
-  useEffect(() => {
-    loadInventoryProducts();
-  }, []);
+  // Component search
+  const [componentSearch, setComponentSearch] = useState('');
+  const [componentSuggestions, setComponentSuggestions] = useState([]);
+  const [showComponentDropdown, setShowComponentDropdown] = useState(false);
 
-  const loadInventoryProducts = async () => {
-    try {
-      const products = await api.getInventoryProducts();
-      setInventoryProducts(products);
-    } catch (err) {
-      console.error('Failed to load inventory products', err);
-    }
-  };
-
-  const addComponent = () => {
-    setComponents([...components, { inventoryProductId: '', quantityNeeded: 1 }]);
-  };
-
-  const updateComponent = (index, field, value) => {
-    const updated = [...components];
-    if (value === '__create_new__') {
-      setNewProductForIndex(index);
-      setShowNewProductModal(true);
+  const searchComponents = useCallback(async (query) => {
+    if (query.length < 1) {
+      setComponentSuggestions([]);
       return;
     }
-    updated[index][field] = field === 'quantityNeeded' ? parseInt(value) || 1 : value;
+    try {
+      const results = await api.searchItems(query);
+      const componentIds = components.map(c => c.componentItemId);
+      setComponentSuggestions(results.filter(item => !componentIds.includes(item.id)));
+    } catch (err) {
+      setComponentSuggestions([]);
+    }
+  }, [components]);
+
+  const addComponent = (item) => {
+    setComponents([...components, {
+      componentItemId: item.id,
+      componentName: item.name,
+      componentCost: item.cost || 0,
+      quantityNeeded: 1
+    }]);
+    setComponentSearch('');
+    setComponentSuggestions([]);
+    setShowComponentDropdown(false);
+  };
+
+  const createAndAddComponent = async () => {
+    if (!componentSearch.trim()) return;
+    try {
+      const newItem = await api.createQuickComponent({ name: componentSearch.trim() });
+      addComponent(newItem);
+    } catch (err) {
+      setError(err.message || 'Failed to create component');
+    }
+  };
+
+  const updateComponentQty = (index, qty) => {
+    const updated = [...components];
+    updated[index].quantityNeeded = parseInt(qty) || 1;
     setComponents(updated);
   };
 
@@ -353,42 +270,36 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
     setComponents(components.filter((_, i) => i !== index));
   };
 
-  const handleNewProductCreated = (newProduct) => {
-    setInventoryProducts([...inventoryProducts, newProduct]);
-    if (newProductForIndex !== null) {
-      const updated = [...components];
-      updated[newProductForIndex].inventoryProductId = newProduct.id.toString();
-      setComponents(updated);
-    }
-    setShowNewProductModal(false);
-    setNewProductForIndex(null);
-  };
+  // Calculate cost from components
+  const calculatedCost = components.length > 0
+    ? components.reduce((sum, c) => sum + ((c.componentCost || 0) * c.quantityNeeded), 0)
+    : null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!form.name?.trim()) {
+      setError('Item name is required');
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
     try {
       const itemData = {
-        name: form.name,
+        name: form.name.trim(),
         price: parseFloat(form.price) || 0,
-        cost: parseFloat(form.cost) || 0,
+        cost: calculatedCost !== null ? calculatedCost : (parseFloat(form.cost) || 0),
         inventory: parseInt(form.inventory) || 0,
-        reorderLevel: parseInt(form.reorderLevel) || 0,
-        baseInventoryId: form.baseInventoryId ? parseInt(form.baseInventoryId) : null,
+        reorderLevel: 0,
+        components: components.map(c => ({
+          componentItemId: c.componentItemId,
+          quantityNeeded: c.quantityNeeded
+        }))
       };
 
       const newItem = await api.createItem(itemData);
-
-      // Save components if any
-      if (components.length > 0) {
-        const validComponents = components.filter(c => c.inventoryProductId);
-        if (validComponents.length > 0) {
-          await api.updateItemComponents(newItem.id, validComponents);
-        }
-      }
-
       onSave(newItem);
     } catch (err) {
       setError(err.message || 'Failed to create item');
@@ -396,21 +307,9 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
     }
   };
 
-  if (showNewProductModal) {
-    return (
-      <QuickAddInventoryProductModal
-        onSave={handleNewProductCreated}
-        onClose={() => {
-          setShowNewProductModal(false);
-          setNewProductForIndex(null);
-        }}
-      />
-    );
-  }
-
   return (
     <div style={modalOverlayStyle} onClick={onClose}>
-      <div style={{ ...modalContentStyle, maxWidth: '550px' }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ ...modalContentStyle, maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
         <div style={modalHeaderStyle}>
           <h3 style={{ margin: 0 }}>Quick Add Item</h3>
           <button
@@ -437,27 +336,17 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
                 autoFocus
+                placeholder="e.g., Laser Engraved Mirror"
               />
             </div>
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Sell Price ($) *</label>
+              <label>Sell Price ($)</label>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
-                required
-              />
-            </div>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Cost ($)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.cost}
-                onChange={(e) => setForm({ ...form, cost: e.target.value })}
                 placeholder="0.00"
               />
             </div>
@@ -465,105 +354,120 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
 
           <div className="form-row">
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Base Inventory (Shared)</label>
-              <select
-                value={form.baseInventoryId}
-                onChange={(e) => setForm({ ...form, baseInventoryId: e.target.value })}
-              >
-                <option value="">-- None --</option>
-                {inventoryProducts.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name} (Qty: {product.quantity})
-                  </option>
-                ))}
-              </select>
+              <label>
+                Cost ($)
+                {calculatedCost !== null && (
+                  <span style={{ color: '#27ae60', fontWeight: 'normal', marginLeft: '0.5rem' }}>
+                    Auto: ${calculatedCost.toFixed(2)}
+                  </span>
+                )}
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={calculatedCost !== null ? calculatedCost.toFixed(2) : form.cost}
+                onChange={(e) => setForm({ ...form, cost: e.target.value })}
+                placeholder="0.00"
+                disabled={calculatedCost !== null}
+              />
             </div>
-          </div>
-
-          <div className="form-row">
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Inventory Count</label>
+              <label>Inventory</label>
               <input
                 type="number"
                 min="0"
                 value={form.inventory}
                 onChange={(e) => setForm({ ...form, inventory: e.target.value })}
                 placeholder="0"
-                disabled={!!form.baseInventoryId || components.length > 0}
-              />
-            </div>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Reorder Level</label>
-              <input
-                type="number"
-                min="0"
-                value={form.reorderLevel}
-                onChange={(e) => setForm({ ...form, reorderLevel: e.target.value })}
-                placeholder="0"
-                disabled={!!form.baseInventoryId || components.length > 0}
+                disabled={components.length > 0}
               />
             </div>
           </div>
 
-          {/* Recipe / Bill of Materials */}
+          {/* Components Section */}
           <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--bg-tertiary, #1c2128)', borderRadius: '8px', border: '1px solid var(--border-secondary, #21262d)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <label style={{ fontWeight: '600', margin: 0 }}>Recipe / Components</label>
-              <button
-                type="button"
-                className="btn btn-sm btn-secondary"
-                onClick={addComponent}
-                disabled={!!form.baseInventoryId}
-              >
-                + Add Component
-              </button>
+            <label style={{ fontWeight: '600', marginBottom: '0.5rem', display: 'block' }}>
+              Components / Recipe
+            </label>
+            <small style={{ color: 'var(--text-muted, #6e7681)', display: 'block', marginBottom: '0.75rem' }}>
+              Add items that make up this product. Cost will auto-calculate.
+            </small>
+
+            {/* Component search */}
+            <div className="autocomplete" style={{ marginBottom: '0.75rem', position: 'relative' }}>
+              <input
+                type="text"
+                value={componentSearch}
+                onChange={(e) => {
+                  setComponentSearch(e.target.value);
+                  searchComponents(e.target.value);
+                  setShowComponentDropdown(true);
+                }}
+                onFocus={() => {
+                  if (componentSearch) setShowComponentDropdown(true);
+                }}
+                onBlur={() => setTimeout(() => setShowComponentDropdown(false), 200)}
+                placeholder="Type to search or create components..."
+              />
+              {showComponentDropdown && componentSearch && (
+                <div className="autocomplete-dropdown">
+                  {componentSuggestions.length === 0 && (
+                    <div className="autocomplete-item autocomplete-no-results">
+                      <small>No matching items found</small>
+                    </div>
+                  )}
+                  {componentSuggestions.map((item) => (
+                    <div
+                      key={item.id}
+                      className="autocomplete-item"
+                      onClick={() => addComponent(item)}
+                    >
+                      <strong>{item.name}</strong>
+                      <small>Cost: ${(item.cost || 0).toFixed(2)}</small>
+                    </div>
+                  ))}
+                  <div
+                    className="autocomplete-item autocomplete-create-new"
+                    onClick={createAndAddComponent}
+                  >
+                    <strong>+ Create "{componentSearch}"</strong>
+                    <small>Add as new component</small>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {form.baseInventoryId && (
-              <small style={{ color: '#888', display: 'block', marginBottom: '0.5rem' }}>
-                Cannot use recipe when linked to shared inventory
-              </small>
-            )}
-
-            {components.length === 0 && !form.baseInventoryId && (
-              <small style={{ color: 'var(--text-muted, #6e7681)' }}>
-                Add inventory products needed to make this item
-              </small>
-            )}
-
-            {components.map((comp, index) => (
-              <div key={index} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <select
-                  value={comp.inventoryProductId}
-                  onChange={(e) => updateComponent(index, 'inventoryProductId', e.target.value)}
-                  style={{ flex: 2, padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-primary, #30363d)', background: 'var(--bg-tertiary, #1c2128)', color: 'var(--text-primary, #e6edf3)' }}
-                  required
-                >
-                  <option value="">-- Select Product --</option>
-                  {inventoryProducts.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} (Qty: {product.quantity})
-                    </option>
-                  ))}
-                  <option value="__create_new__">+ Create New Product...</option>
-                </select>
-                <input
-                  type="number"
-                  min="1"
-                  value={comp.quantityNeeded}
-                  onChange={(e) => updateComponent(index, 'quantityNeeded', e.target.value)}
-                  style={{ width: '70px', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-primary, #30363d)', background: 'var(--bg-tertiary, #1c2128)', color: 'var(--text-primary, #e6edf3)', textAlign: 'center' }}
-                  placeholder="Qty"
-                />
-                <button
-                  type="button"
-                  className="btn btn-sm btn-danger"
-                  onClick={() => removeComponent(index)}
-                >
-                  &times;
-                </button>
+            {/* Component list */}
+            {components.length > 0 && (
+              <div>
+                {components.map((comp, index) => (
+                  <div key={index} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <span style={{ flex: 2 }}>{comp.componentName}</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={comp.quantityNeeded}
+                      onChange={(e) => updateComponentQty(index, e.target.value)}
+                      style={{ width: '60px', padding: '0.4rem', borderRadius: '4px', border: '1px solid var(--border-color)', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                    />
+                    <span style={{ width: '70px', textAlign: 'right' }}>
+                      ${((comp.componentCost || 0) * comp.quantityNeeded).toFixed(2)}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-danger"
+                      onClick={() => removeComponent(index)}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem', marginTop: '0.5rem', fontWeight: '600' }}>
+                  Total: ${calculatedCost?.toFixed(2) || '0.00'}
+                </div>
               </div>
-            ))}
+            )}
           </div>
 
           <div className="btn-group" style={{ marginTop: '1rem' }}>
