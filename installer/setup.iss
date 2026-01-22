@@ -31,9 +31,6 @@ PrivilegesRequiredOverridesAllowed=dialog
 WizardStyle=modern
 ; Uninstaller
 UninstallDisplayName={#MyAppName}
-; Close running app before install
-CloseApplications=yes
-CloseApplicationsFilter=*.exe,*.bat
 ; Auto-uninstall previous version
 UsePreviousAppDir=yes
 
@@ -68,6 +65,17 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDi
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec
 
 [Code]
+// Kill any running node.exe processes from our app directory
+procedure KillNodeProcess();
+var
+  ResultCode: Integer;
+begin
+  // Kill node.exe processes - taskkill will silently fail if not running
+  Exec('taskkill', '/F /IM node.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  // Small delay to ensure process is fully terminated
+  Sleep(500);
+end;
+
 function GetUninstallString(): String;
 var
   sUnInstPath: String;
@@ -102,13 +110,26 @@ begin
     Result := 1;
 end;
 
+// Called during install
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if (CurStep=ssInstall) then
   begin
+    // Kill node.exe before installing
+    KillNodeProcess();
     if (IsUpgrade()) then
     begin
       UnInstallOldVersion();
     end;
+  end;
+end;
+
+// Called during uninstall
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if (CurUninstallStep=usUninstall) then
+  begin
+    // Kill node.exe before uninstalling
+    KillNodeProcess();
   end;
 end;
