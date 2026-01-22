@@ -2,7 +2,7 @@
 
 A full-stack invoice management application for small businesses/freelancers.
 
-**Current Version:** 1.3.0
+**Current Version:** 1.3.1
 **Platform:** Windows 10+ (browser-based)
 **GitHub:** https://github.com/mikana30/Invoice_Creator
 **Support:** bluelinescannables@gmail.com
@@ -65,7 +65,7 @@ Invoice Creator/
 ## Running the App
 
 ### Production (User Experience)
-1. Double-click `Start Invoice Creator.bat`
+1. Double-click `launcher/launch.bat` (or desktop shortcut after install)
 2. Browser opens automatically to http://localhost:3001
 3. Close the console window to stop the app
 
@@ -101,15 +101,20 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 - Form state persists in localStorage (draft recovery)
 
 ### Item & Inventory (Unified System - v1.3.0)
-- **Single unified items table** - everything is an item
-- Items can be **both sellable AND components** of other items
-- Example: A "Knife" can be sold alone OR used as a component of "Engraved Knife"
-- **Recursive cost calculation** - cost auto-calculates from components
-- **Recursive inventory** - selling a product decrements component inventory
+- **Single unified items table** - everything is an item (no separate "component" type)
+- **Dual-purpose items** - any item can be **both sellable AND a component** of other items
+  - Example: "Blank Knife" ($15) can be sold directly OR used as a component
+  - Example: "Engraved Knife" ($35) uses "Blank Knife" as a component
+- **Nested components** - items can contain items that contain items (unlimited depth)
+  - Example: "Gift Set" contains "Engraved Knife" which contains "Blank Knife"
+- **Recursive cost calculation** - cost auto-calculates by summing component costs
+- **Recursive inventory** - selling a product decrements all nested component inventory
 - Quick-add modals from invoice form for new clients/items
-- Inline component creation in dropdowns
+- **Inline item creation** - create new items with price/cost directly in component dropdown
 - Archive/unarchive items (hidden from invoice autocomplete)
 - Inventory overview with quick adjust (+1, -1, +10, set value)
+
+**Key Principle:** There is NO distinction between "items" and "components" - they are all items in the same table. The `item_components` table simply links parent items to child items with a quantity.
 
 ### Financial Tracking
 - Configurable selling fees (percentage + fixed)
@@ -160,7 +165,7 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 ## API Endpoints
 
 ### Health Check
-- `GET /api/health` - Returns `{ status: 'ok', version: '1.3.0' }`
+- `GET /api/health` - Returns `{ status: 'ok', version: '1.3.1' }`
 
 ### Settings
 - `GET /settings` - Get all settings
@@ -182,7 +187,7 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 - `DELETE /items/:id` - Delete (fails if used in invoices or as component)
 - `GET /items/:id/components` - Get item's components with details
 - `PUT /items/:id/components` - Update item's components
-- `POST /items/quick-component` - Quick-create a simple component item
+- `POST /items/quick-component` - Quick-create item with name, price, cost (for inline creation in dropdowns)
 
 ### Invoices
 - `GET /invoices` - List all with status, due date, invoice number, client name
@@ -222,9 +227,10 @@ Update version in these files:
 2. `frontend/src/components/AboutDialog.jsx`
 3. `frontend/src/components/UpdateNotification.jsx`
 4. `launcher/launch.bat`
-5. `backend/index.js` (health check)
-6. `installer/setup.iss`
-7. `build.bat` (echo message)
+5. `Start Invoice Creator.bat` (dev launcher in root)
+6. `backend/index.js` (health check)
+7. `installer/setup.iss`
+8. `build.bat` (echo message)
 
 ### Create GitHub Release
 ```bash
@@ -271,7 +277,7 @@ Hidden ownership signatures embedded throughout codebase:
 ## Rules for Claude (MUST FOLLOW)
 
 ### Task Tracking (MANDATORY)
-1. **Create a checklist for EVERY task** using TodoWrite - no exceptions
+1. **Create a checklist for EVERY task** using TaskCreate - no exceptions
 2. **Check off each item immediately** when complete - never batch completions
 3. **Update CLAUDE.md after every response** - keep documentation current
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../api';
 
 // Hook to handle Escape key to close modals
@@ -223,6 +223,15 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
   const [componentSearch, setComponentSearch] = useState('');
   const [componentSuggestions, setComponentSuggestions] = useState([]);
   const [showComponentDropdown, setShowComponentDropdown] = useState(false);
+  const [showInlineCreate, setShowInlineCreate] = useState(false);
+  const [inlineCreatePrice, setInlineCreatePrice] = useState('');
+  const [inlineCreateCost, setInlineCreateCost] = useState('');
+  const inlineCreateRef = useRef(false);
+
+  // Keep ref in sync with state for blur handler
+  useEffect(() => {
+    inlineCreateRef.current = showInlineCreate;
+  }, [showInlineCreate]);
 
   const searchComponents = useCallback(async (query) => {
     if (query.length < 1) {
@@ -253,10 +262,17 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
   const createAndAddComponent = async () => {
     if (!componentSearch.trim()) return;
     try {
-      const newItem = await api.createQuickComponent({ name: componentSearch.trim() });
+      const newItem = await api.createQuickComponent({
+        name: componentSearch.trim(),
+        price: parseFloat(inlineCreatePrice) || 0,
+        cost: parseFloat(inlineCreateCost) || 0
+      });
       addComponent(newItem);
+      setShowInlineCreate(false);
+      setInlineCreatePrice('');
+      setInlineCreateCost('');
     } catch (err) {
-      setError(err.message || 'Failed to create component');
+      setError(err.message || 'Failed to create item');
     }
   };
 
@@ -403,12 +419,14 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
                   setComponentSearch(e.target.value);
                   searchComponents(e.target.value);
                   setShowComponentDropdown(true);
+                  setShowInlineCreate(false);
                 }}
                 onFocus={() => {
                   if (componentSearch) setShowComponentDropdown(true);
                 }}
-                onBlur={() => setTimeout(() => setShowComponentDropdown(false), 200)}
-                placeholder="Type to search or create components..."
+                onBlur={() => setTimeout(() => { if (!inlineCreateRef.current) setShowComponentDropdown(false); }, 300)}
+                placeholder="Search existing items or type new name..."
+                style={{ width: '100%', padding: '0.6rem', fontSize: '1rem' }}
               />
               {showComponentDropdown && componentSearch && (
                 <div className="autocomplete-dropdown">
@@ -427,13 +445,69 @@ export function QuickAddItemModal({ initialName, initialPrice, onSave, onClose }
                       <small>Cost: ${(item.cost || 0).toFixed(2)}</small>
                     </div>
                   ))}
-                  <div
-                    className="autocomplete-item autocomplete-create-new"
-                    onClick={createAndAddComponent}
-                  >
-                    <strong>+ Create "{componentSearch}"</strong>
-                    <small>Add as new component</small>
-                  </div>
+                  {!showInlineCreate ? (
+                    <div
+                      className="autocomplete-item autocomplete-create-new"
+                      onClick={() => setShowInlineCreate(true)}
+                    >
+                      <strong>+ Create "{componentSearch}"</strong>
+                      <small>Click to add as new item</small>
+                    </div>
+                  ) : (
+                    <div style={{ padding: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
+                      <div style={{ marginBottom: '0.5rem', fontWeight: '600' }}>
+                        Create: {componentSearch}
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sell Price</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={inlineCreatePrice}
+                            onChange={(e) => setInlineCreatePrice(e.target.value)}
+                            placeholder="0.00"
+                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                            autoFocus
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Cost</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={inlineCreateCost}
+                            onChange={(e) => setInlineCreateCost(e.target.value)}
+                            placeholder="0.00"
+                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={createAndAddComponent}
+                          style={{ flex: 1 }}
+                        >
+                          Create Item
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setShowInlineCreate(false);
+                            setInlineCreatePrice('');
+                            setInlineCreateCost('');
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

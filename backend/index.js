@@ -41,7 +41,7 @@ function validatePositiveInteger(value, fieldName) {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '1.3.0' });
+  res.json({ status: 'ok', version: '1.3.1' });
 });
 
 // Settings routes
@@ -405,19 +405,20 @@ app.put('/items/:id/components', async (req, res) => {
   }
 });
 
-// Quick create a component item (for inline creation in dropdowns)
+// Quick create an item (for inline creation in dropdowns)
+// In unified system, any item can be sold directly OR used as a component
 app.post('/items/quick-component', async (req, res) => {
-  const { name, cost = 0, inventory = 0 } = req.body;
+  const { name, price = 0, cost = 0, inventory = 0 } = req.body;
 
   if (!name || !name.trim()) {
-    return res.status(400).json({ message: 'Component name is required' });
+    return res.status(400).json({ message: 'Item name is required' });
   }
 
   try {
     const db = await openDb();
     const result = await db.run(
-      'INSERT INTO items (name, price, cost, inventory, reorderLevel, active) VALUES (?, 0, ?, ?, 0, 1)',
-      [name.trim(), parseFloat(cost) || 0, parseInt(inventory) || 0]
+      'INSERT INTO items (name, price, cost, inventory, reorderLevel, active) VALUES (?, ?, ?, ?, 0, 1)',
+      [name.trim(), parseFloat(price) || 0, parseFloat(cost) || 0, parseInt(inventory) || 0]
     );
 
     const newItem = await db.get('SELECT * FROM items WHERE id = ?', [result.lastID]);

@@ -23,7 +23,7 @@ function AboutDialog({ onClose }) {
         <div className="modal-body about-content">
           <div className="about-logo">
             <h1>Invoice Creator</h1>
-            <span className="version">Version 1.3.0</span>
+            <span className="version">Version 1.3.1</span>
           </div>
 
           <div className="about-section">
