@@ -2,7 +2,7 @@
 
 A full-stack invoice management application for small businesses/freelancers.
 
-**Current Version:** 1.2.4
+**Current Version:** 1.3.0
 **Platform:** Windows 10+ (browser-based)
 **GitHub:** https://github.com/mikana30/Invoice_Creator
 **Support:** bluelinescannables@gmail.com
@@ -28,9 +28,9 @@ Invoice Creator/
 │   └── node/                 # Bundled Node.js runtime
 ├── backend/
 │   ├── index.js              # Express server & API routes
-│   ├── database.js           # SQLite connection
+│   ├── database.js           # SQLite connection (handles AppData path)
 │   ├── init-db.js            # Schema initialization
-│   └── database.db           # SQLite database file
+│   └── database.db           # SQLite database file (dev only)
 ├── frontend/
 │   ├── index.html            # Main HTML
 │   ├── dist/                 # Production build output
@@ -43,18 +43,21 @@ Invoice Creator/
 │           ├── InvoiceList.jsx       # View & manage invoices
 │           ├── InvoicePrint.jsx      # Print/PDF preview
 │           ├── ClientManager.jsx     # Client CRUD
-│           ├── ItemManager.jsx       # Item/product CRUD
-│           ├── InventoryManager.jsx  # Shared inventory products
-│           ├── Settings.jsx          # Business settings
-│           ├── ExportData.jsx        # CSV export & backup/restore
+│           ├── ItemManager.jsx       # Unified item/component management
+│           ├── InventoryManager.jsx  # Stock overview & quick adjust
+│           ├── Settings.jsx          # Business settings & auto-backup
+│           ├── ExportData.jsx        # CSV export & report templates
 │           ├── AboutDialog.jsx       # Copyright & version info
 │           ├── UpdateNotification.jsx # GitHub release checker
 │           └── SupportForm.jsx       # Help/feedback form
+├── installer/
+│   ├── setup.iss             # Inno Setup installer script
+│   └── Invoice Creator.bat   # Launcher included in installer
 ├── tools/
 │   ├── generate-etsy-pdf.js  # Generate Etsy download PDF
 │   └── create-shortcuts.ps1  # Desktop/Start Menu shortcuts
 ├── assets/                   # App icons (optional)
-├── Install Shortcuts.bat     # Creates Desktop/Start Menu shortcuts
+├── LICENSE                   # Proprietary license
 ├── package.json              # Root package
 └── CLAUDE.md                 # This file
 ```
@@ -94,16 +97,19 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 - Invoice notes field
 - Void invoices (restores inventory, keeps record)
 - Print/PDF generation via react-to-print
-- Form state persists when switching tabs
+- Auto-opens PDF preview after creating invoice
+- Form state persists in localStorage (draft recovery)
 
-### Item & Inventory
-- Item cost tracking for profit calculations
-- Inventory count with reorder level alerts
-- Profit margin display in item list
-- Archive/unarchive items (hidden from invoice autocomplete)
-- Shared inventory products (one base inventory linked to multiple sell items)
-- Recipe/Bill of Materials support (items can have component ingredients)
+### Item & Inventory (Unified System - v1.3.0)
+- **Single unified items table** - everything is an item
+- Items can be **both sellable AND components** of other items
+- Example: A "Knife" can be sold alone OR used as a component of "Engraved Knife"
+- **Recursive cost calculation** - cost auto-calculates from components
+- **Recursive inventory** - selling a product decrements component inventory
 - Quick-add modals from invoice form for new clients/items
+- Inline component creation in dropdowns
+- Archive/unarchive items (hidden from invoice autocomplete)
+- Inventory overview with quick adjust (+1, -1, +10, set value)
 
 ### Financial Tracking
 - Configurable selling fees (percentage + fixed)
@@ -118,9 +124,18 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 ### Data Export & Backup
 - CSV export for Clients, Items, Invoices
 - Financial summary by month
-- Full JSON backup (all data including invoice items)
+- Full JSON backup (all data including invoice items and components)
 - Restore from backup (replaces all data)
-- Report templates (Profit Analysis, Tax Report, Sales by Item, etc.)
+- **Auto-backup** - saves to browser localStorage every 5 minutes (optional)
+- Report templates:
+  - Profit Analysis
+  - Annual Summary
+  - Client Revenue Summary
+  - Tax Report (Monthly)
+  - Quarterly Tax Summary
+  - Inventory Value
+  - Sales by Item
+- **All Time checkbox** - easy toggle for full-history reports
 
 ### Update Notification
 - Automatically checks GitHub for new releases
@@ -132,17 +147,20 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 
 ### Tables
 - **clients**: id, name, street, street2, city, state, zip, phone, email
-- **items**: id, name (unique), price, cost, inventory, reorderLevel, baseInventoryId, active
-- **inventory_products**: id, name (unique), quantity, reorderLevel
-- **item_components**: id, itemId, inventoryProductId, quantityNeeded (Bill of Materials)
+- **items**: id, name (unique), price, cost, inventory, reorderLevel, active
+- **item_components**: id, parentItemId, componentItemId, quantityNeeded (self-referencing for recipes)
 - **invoices**: id, invoiceNumber, clientId, invoiceDate, dueDate, paymentStatus, amountPaid, paymentDate, notes, createdAt, total
 - **invoice_items**: id, invoiceId, itemId, quantity, price, taxExempt
 - **settings**: singleton row with business info, taxRate, invoiceNumberPrefix, invoiceNumberNextSequence, defaultPaymentTerms, sellingFeePercent, sellingFeeFixed, bannerImage
 
+### Database Location
+- **Installed (Program Files)**: `%APPDATA%/invoice-creator/database.db`
+- **Development**: `backend/database.db`
+
 ## API Endpoints
 
 ### Health Check
-- `GET /api/health` - Returns `{ status: 'ok', version: '1.2.4' }`
+- `GET /api/health` - Returns `{ status: 'ok', version: '1.3.0' }`
 
 ### Settings
 - `GET /settings` - Get all settings
@@ -155,27 +173,24 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 - `PUT /clients/:id` - Update client
 - `DELETE /clients/:id` - Delete (fails if client has invoices)
 
-### Items
-- `GET /items` - List all with cost/inventory
+### Items (Unified System)
+- `GET /items` - List all with cost/inventory/componentCount
 - `GET /items/search?q=` - Search active items by name
-- `POST /items` - Create with cost, inventory, reorderLevel, baseInventoryId
-- `PUT /items/:id` - Update all fields
+- `POST /items` - Create with cost, inventory, reorderLevel, components[]
+- `PUT /items/:id` - Update all fields including components
 - `PATCH /items/:id/active` - Archive/unarchive item
-- `DELETE /items/:id` - Delete (fails if used in invoices)
-
-### Inventory Products
-- `GET /inventory-products` - List all base inventory products
-- `POST /inventory-products` - Create shared inventory product
-- `PUT /inventory-products/:id` - Update quantity/reorderLevel
-- `DELETE /inventory-products/:id` - Delete (fails if items linked)
+- `DELETE /items/:id` - Delete (fails if used in invoices or as component)
+- `GET /items/:id/components` - Get item's components with details
+- `PUT /items/:id/components` - Update item's components
+- `POST /items/quick-component` - Quick-create a simple component item
 
 ### Invoices
 - `GET /invoices` - List all with status, due date, invoice number, client name
 - `GET /invoices/:id` - Get with items (includes item costs)
-- `POST /invoices` - Create (auto-generates invoice number, due date; decrements inventory)
+- `POST /invoices` - Create (auto-generates invoice number, due date; decrements inventory recursively)
 - `PUT /invoices/:id` - Update (handles inventory adjustments)
 - `PATCH /invoices/:id/payment` - Update payment status/amount
-- `PATCH /invoices/:id/void` - Void invoice (restores inventory)
+- `PATCH /invoices/:id/void` - Void invoice (restores inventory recursively)
 - `DELETE /invoices/:id` - Delete (restores inventory unless voided)
 
 ### Data Restore
@@ -188,15 +203,28 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 npm run build    # Builds frontend to frontend/dist/
 ```
 
-### Create Distribution Package
-1. Update version in: package.json, AboutDialog.jsx, UpdateNotification.jsx, launcher/launch.bat
-2. Build frontend: `npm run build`
-3. Package the following folders:
-   - `launcher/` - App launcher
-   - `portable-node/` - Node.js runtime
-   - `backend/` - Server code + node_modules
-   - `frontend/dist/` - Built frontend
-   - `Install Shortcuts.bat` - Shortcut installer
+### Create Installer
+```bash
+build.bat    # Builds frontend + creates Inno Setup installer
+```
+
+Or manually:
+```bash
+npm run build
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\setup.iss
+```
+
+Output: `dist/Invoice Creator Setup X.X.X.exe`
+
+### Version Update Checklist
+Update version in these files:
+1. `package.json`
+2. `frontend/src/components/AboutDialog.jsx`
+3. `frontend/src/components/UpdateNotification.jsx`
+4. `launcher/launch.bat`
+5. `backend/index.js` (health check)
+6. `installer/setup.iss`
+7. `build.bat` (echo message)
 
 ### Create GitHub Release
 ```bash
@@ -204,6 +232,7 @@ git add -A && git commit -m "v1.x.x - description"
 git tag v1.x.x
 git push origin main && git push origin v1.x.x
 gh release create v1.x.x --title "Invoice Creator v1.x.x" --notes "Release notes"
+gh release upload v1.x.x "dist/Invoice Creator Setup 1.x.x.exe"
 ```
 
 ### Update Etsy PDF
@@ -217,13 +246,21 @@ node tools/generate-etsy-pdf.js
 **Model:** Free app, sold via Etsy digital download
 1. Customer buys on Etsy -> receives PDF with download link
 2. PDF links to: https://github.com/mikana30/Invoice_Creator/releases/latest
-3. Customer downloads and extracts - no license key needed
+3. Customer downloads installer and runs it
+
+## Installer Behavior
+- **Upgrade**: Auto-uninstalls previous version, preserves database in AppData
+- **Uninstall**: Kills node.exe process, removes app files, keeps database in AppData
+- **Fresh install**: Creates database on first app launch (not during install)
 
 ## Copyright Protection
 
+**LICENSE file**: Proprietary license prohibiting redistribution, modification, reverse engineering.
+
 Hidden ownership signatures embedded throughout codebase:
 - `backend/index.js` - Hex-encoded signature
-- `frontend/src/App.jsx` - Base64 encoded ownership string
+- `frontend/src/App.jsx` - Base64 encoded ownership string, visible copyright header
+- `frontend/src/api.js` - Copyright header
 - `frontend/src/components/AboutDialog.jsx` - Build ID, hex integrity check
 - `frontend/src/components/InvoicePrint.jsx` - Zero-width character watermark in printed invoices
 
@@ -269,26 +306,19 @@ Hidden ownership signatures embedded throughout codebase:
 
 ---
 
-## Current Bug Fixes (In Progress)
-
-### [ ] 1. Invoice Form Data Lost on Refresh
-- **Issue:** Refreshing the invoice creation page loses all entered data
-- **Cause:** Form state only exists in React state, not persisted
-- **Fix:** Auto-save form state to localStorage, restore on page load
-
-### [ ] 2. Profit Not Updating When Prices Entered
-- **Issue:** Profit calculation doesn't update in real-time
-- **Cause:** Under investigation
-- **Fix:** Ensure profit recalculates on price/cost changes
-
-### [ ] 3. Recipe/Shared Inventory Too Complicated
-- **Issue:** Adding recipe items and shared inventory is confusing
-- **Cause:** Too many concepts (Items vs Inventory Products vs Components)
-- **Fix:** Simplify the workflow - clearer labels, better UX flow
-
----
-
 ## Fixed Bugs
+
+### [x] Client Creation Blank Screen (FIXED v1.3.0)
+- **Issue:** Creating a client with missing fields caused blank screen
+- **Fix:** Added validation and proper error handling in POST /clients
+
+### [x] PDF Not Auto-Opening (FIXED v1.3.0)
+- **Issue:** After creating invoice, user had to manually navigate to print
+- **Fix:** Auto-navigate to print view after invoice creation
+
+### [x] Recipe/Shared Inventory Too Complicated (FIXED v1.3.0)
+- **Issue:** Three separate concepts (Items, Inventory Products, Components) were confusing
+- **Fix:** Unified into single Items table with self-referencing components
 
 ### [x] Data Path Mismatch (FIXED v1.2.4)
 - Old Electron app: `AppData/Roaming/invoice-creator/`
