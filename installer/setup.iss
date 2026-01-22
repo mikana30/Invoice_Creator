@@ -2,7 +2,7 @@
 ; Copyright (c) 2025 Blue Line Scannables
 
 #define MyAppName "Invoice Creator"
-#define MyAppVersion "1.2.4"
+#define MyAppVersion "1.3.0"
 #define MyAppPublisher "Blue Line Scannables"
 #define MyAppURL "https://github.com/mikana30/Invoice_Creator"
 #define MyAppExeName "Invoice Creator.bat"

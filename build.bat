@@ -51,7 +51,7 @@ echo Build complete!
 echo ========================================
 echo.
 if exist "dist\Invoice Creator Setup*.exe" (
-    echo Installer created: dist\Invoice Creator Setup 1.2.4.exe
+    echo Installer created: dist\Invoice Creator Setup 1.3.0.exe
     echo.
     echo Your customers just need to:
     echo   1. Download the .exe
