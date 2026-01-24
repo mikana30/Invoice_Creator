@@ -41,7 +41,7 @@ function validatePositiveInteger(value, fieldName) {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '1.3.2' });
+  res.json({ status: 'ok', version: '1.3.3' });
 });
 
 // Settings routes
@@ -159,13 +159,14 @@ app.delete('/clients/:id', async (req, res) => {
 });
 
 // Helper: Calculate item cost from components (recursive)
+// Only includes components where includeInCost = 1 (or NULL for backwards compatibility)
 async function calculateItemCost(db, itemId, visited = new Set()) {
   // Prevent infinite loops from circular references
   if (visited.has(itemId)) return 0;
   visited.add(itemId);
 
   const components = await db.all(
-    'SELECT componentItemId, quantityNeeded FROM item_components WHERE parentItemId = ?',
+    'SELECT componentItemId, quantityNeeded, includeInCost FROM item_components WHERE parentItemId = ?',
     [itemId]
   );
 
@@ -175,9 +176,11 @@ async function calculateItemCost(db, itemId, visited = new Set()) {
     return item ? parseFloat(item.cost) || 0 : 0;
   }
 
-  // Sum up component costs
+  // Sum up component costs (only those marked as includeInCost)
   let totalCost = 0;
   for (const comp of components) {
+    // Include if includeInCost is 1 or NULL (backwards compatibility)
+    if (comp.includeInCost === 0) continue;
     const componentCost = await calculateItemCost(db, comp.componentItemId, new Set(visited));
     totalCost += componentCost * comp.quantityNeeded;
   }
@@ -250,8 +253,8 @@ app.post('/items', async (req, res) => {
       for (const comp of components) {
         if (comp.componentItemId && comp.quantityNeeded > 0) {
           await db.run(
-            'INSERT INTO item_components (parentItemId, componentItemId, quantityNeeded) VALUES (?, ?, ?)',
-            [itemId, comp.componentItemId, comp.quantityNeeded]
+            'INSERT INTO item_components (parentItemId, componentItemId, quantityNeeded, includeInCost) VALUES (?, ?, ?, ?)',
+            [itemId, comp.componentItemId, comp.quantityNeeded, comp.includeInCost !== false ? 1 : 0]
           );
         }
       }
@@ -298,8 +301,8 @@ app.put('/items/:id', async (req, res) => {
       for (const comp of components || []) {
         if (comp.componentItemId && comp.quantityNeeded > 0) {
           await db.run(
-            'INSERT INTO item_components (parentItemId, componentItemId, quantityNeeded) VALUES (?, ?, ?)',
-            [id, comp.componentItemId, comp.quantityNeeded]
+            'INSERT INTO item_components (parentItemId, componentItemId, quantityNeeded, includeInCost) VALUES (?, ?, ?, ?)',
+            [id, comp.componentItemId, comp.quantityNeeded, comp.includeInCost !== false ? 1 : 0]
           );
         }
       }
@@ -362,7 +365,7 @@ app.get('/items/:id/components', async (req, res) => {
   try {
     const db = await openDb();
     const components = await db.all(`
-      SELECT ic.id, ic.componentItemId, ic.quantityNeeded,
+      SELECT ic.id, ic.componentItemId, ic.quantityNeeded, ic.includeInCost,
              i.name as componentName, i.price as componentPrice, i.cost as componentCost, i.inventory as componentInventory
       FROM item_components ic
       JOIN items i ON ic.componentItemId = i.id
@@ -390,8 +393,8 @@ app.put('/items/:id/components', async (req, res) => {
     for (const comp of components || []) {
       if (comp.componentItemId && comp.quantityNeeded > 0) {
         await db.run(
-          'INSERT INTO item_components (parentItemId, componentItemId, quantityNeeded) VALUES (?, ?, ?)',
-          [id, comp.componentItemId, comp.quantityNeeded]
+          'INSERT INTO item_components (parentItemId, componentItemId, quantityNeeded, includeInCost) VALUES (?, ?, ?, ?)',
+          [id, comp.componentItemId, comp.quantityNeeded, comp.includeInCost !== false ? 1 : 0]
         );
       }
     }

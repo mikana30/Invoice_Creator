@@ -16,6 +16,10 @@ export default function ItemManager() {
   const [componentSuggestions, setComponentSuggestions] = useState([]);
   const [showComponentDropdown, setShowComponentDropdown] = useState(false);
 
+  // Inline component creation form
+  const [showCreateComponentForm, setShowCreateComponentForm] = useState(false);
+  const [newComponentForm, setNewComponentForm] = useState({ name: '', price: '', cost: '', includeInCost: true });
+
   useEffect(() => {
     loadItems();
   }, []);
@@ -50,10 +54,16 @@ export default function ItemManager() {
     }
   }, [editingId, components]);
 
-  // Calculate cost from components
+  // Calculate cost from components (only those marked as includeInCost)
   const calculatedCost = useMemo(() => {
     if (components.length === 0) return null;
+    const includedComponents = components.filter(comp => comp.includeInCost !== false);
+    if (includedComponents.length === 0 && components.length > 0) {
+      // All components excluded from cost - return 0 but still show as calculated
+      return 0;
+    }
     return components.reduce((sum, comp) => {
+      if (comp.includeInCost === false) return sum;
       const compCost = parseFloat(comp.componentCost) || 0;
       return sum + (compCost * comp.quantityNeeded);
     }, 0);
@@ -100,6 +110,8 @@ export default function ItemManager() {
     setEditingId(null);
     setComponentSearch('');
     setComponentSuggestions([]);
+    setShowCreateComponentForm(false);
+    setNewComponentForm({ name: '', price: '', cost: '', includeInCost: true });
   };
 
   const handleEdit = async (item) => {
@@ -119,7 +131,8 @@ export default function ItemManager() {
         componentName: c.componentName,
         componentCost: c.componentCost,
         componentInventory: c.componentInventory,
-        quantityNeeded: c.quantityNeeded
+        quantityNeeded: c.quantityNeeded,
+        includeInCost: c.includeInCost !== 0 // Default to true if NULL or 1
       })));
     } catch (err) {
       setComponents([]);
@@ -149,34 +162,72 @@ export default function ItemManager() {
   };
 
   // Add a component from suggestions
-  const addComponent = (item) => {
+  const addComponent = (item, includeInCost = true) => {
     setComponents([...components, {
       componentItemId: item.id,
       componentName: item.name,
       componentCost: item.cost || 0,
       componentInventory: item.inventory || 0,
-      quantityNeeded: 1
+      quantityNeeded: 1,
+      includeInCost: includeInCost
     }]);
     setComponentSearch('');
     setComponentSuggestions([]);
     setShowComponentDropdown(false);
   };
 
-  // Quick create a new component
-  const createNewComponent = async () => {
-    if (!componentSearch.trim()) return;
+  // Show inline form to create a new component
+  const showCreateForm = () => {
+    setNewComponentForm({ name: componentSearch.trim(), price: '', cost: '', includeInCost: true });
+    setShowCreateComponentForm(true);
+    setShowComponentDropdown(false);
+  };
+
+  // Submit the inline component creation form
+  const submitNewComponent = async () => {
+    if (!newComponentForm.name?.trim()) {
+      setMessage({ type: 'error', text: 'Component name is required' });
+      return;
+    }
     try {
-      const newItem = await api.createQuickComponent({ name: componentSearch.trim() });
-      addComponent(newItem);
+      const newItem = await api.createQuickComponent({
+        name: newComponentForm.name.trim(),
+        price: parseFloat(newComponentForm.price) || 0,
+        cost: parseFloat(newComponentForm.cost) || 0
+      });
+      // Add to components list with the includeInCost setting
+      setComponents([...components, {
+        componentItemId: newItem.id,
+        componentName: newItem.name,
+        componentCost: newItem.cost || 0,
+        componentInventory: newItem.inventory || 0,
+        quantityNeeded: 1,
+        includeInCost: newComponentForm.includeInCost
+      }]);
       setMessage({ type: 'success', text: `Created "${newItem.name}"` });
+      cancelCreateForm();
+      await loadItems(); // Refresh items list
     } catch (err) {
       setMessage({ type: 'error', text: err.message || 'Failed to create component' });
     }
   };
 
+  // Cancel inline component creation
+  const cancelCreateForm = () => {
+    setShowCreateComponentForm(false);
+    setNewComponentForm({ name: '', price: '', cost: '', includeInCost: true });
+    setComponentSearch('');
+  };
+
   const updateComponentQty = (index, qty) => {
     const updated = [...components];
     updated[index].quantityNeeded = parseInt(qty) || 1;
+    setComponents(updated);
+  };
+
+  const toggleComponentIncludeInCost = (index) => {
+    const updated = [...components];
+    updated[index].includeInCost = !updated[index].includeInCost;
     setComponents(updated);
   };
 
@@ -331,10 +382,69 @@ export default function ItemManager() {
                   ))}
                   <div
                     className="autocomplete-item autocomplete-create-new"
-                    onClick={createNewComponent}
+                    onClick={showCreateForm}
                   >
                     <strong>+ Create "{componentSearch}"</strong>
-                    <small>Add as new component</small>
+                    <small>Add as new component with cost</small>
+                  </div>
+                </div>
+              )}
+
+              {/* Inline component creation form */}
+              {showCreateComponentForm && (
+                <div style={{ marginTop: '0.75rem', padding: '1rem', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontWeight: '600', marginBottom: '0.75rem' }}>Create New Component</div>
+                  <div className="form-row" style={{ marginBottom: '0.5rem' }}>
+                    <div className="form-group" style={{ flex: 2, marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.85rem' }}>Name *</label>
+                      <input
+                        type="text"
+                        value={newComponentForm.name}
+                        onChange={(e) => setNewComponentForm({ ...newComponentForm, name: e.target.value })}
+                        placeholder="Component name"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.85rem' }}>Sell Price ($)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newComponentForm.price}
+                        onChange={(e) => setNewComponentForm({ ...newComponentForm, price: e.target.value })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.85rem' }}>Cost ($)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newComponentForm.cost}
+                        onChange={(e) => setNewComponentForm({ ...newComponentForm, cost: e.target.value })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.75rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={newComponentForm.includeInCost}
+                        onChange={(e) => setNewComponentForm({ ...newComponentForm, includeInCost: e.target.checked })}
+                      />
+                      <span style={{ fontSize: '0.9rem' }}>Add cost to parent item's total cost</span>
+                    </label>
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={cancelCreateForm}>
+                        Cancel
+                      </button>
+                      <button type="button" className="btn btn-primary btn-sm" onClick={submitNewComponent}>
+                        Create & Add
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -344,14 +454,25 @@ export default function ItemManager() {
             {components.length > 0 && (
               <div>
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.85rem', color: '#888' }}>
+                  <span style={{ width: '24px' }} title="Include in cost calculation"></span>
                   <span style={{ flex: 2 }}>Component</span>
                   <span style={{ width: '80px', textAlign: 'center' }}>Qty</span>
                   <span style={{ width: '80px', textAlign: 'right' }}>Cost</span>
                   <span style={{ width: '32px' }}></span>
                 </div>
                 {components.map((comp, index) => (
-                  <div key={index} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <span style={{ flex: 2 }}>{comp.componentName}</span>
+                  <div key={index} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem', opacity: comp.includeInCost === false ? 0.6 : 1 }}>
+                    <input
+                      type="checkbox"
+                      checked={comp.includeInCost !== false}
+                      onChange={() => toggleComponentIncludeInCost(index)}
+                      title={comp.includeInCost !== false ? 'Included in cost calculation' : 'Excluded from cost calculation'}
+                      style={{ width: '24px' }}
+                    />
+                    <span style={{ flex: 2, textDecoration: comp.includeInCost === false ? 'line-through' : 'none' }}>
+                      {comp.componentName}
+                      {comp.includeInCost === false && <span style={{ color: '#888', marginLeft: '0.5rem', fontSize: '0.8rem' }}>(not in cost)</span>}
+                    </span>
                     <input
                       type="number"
                       min="1"
@@ -359,7 +480,7 @@ export default function ItemManager() {
                       onChange={(e) => updateComponentQty(index, e.target.value)}
                       style={{ width: '80px', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border-color)', textAlign: 'center', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                     />
-                    <span style={{ width: '80px', textAlign: 'right' }}>
+                    <span style={{ width: '80px', textAlign: 'right', color: comp.includeInCost === false ? '#888' : 'inherit' }}>
                       ${((comp.componentCost || 0) * comp.quantityNeeded).toFixed(2)}
                     </span>
                     <button

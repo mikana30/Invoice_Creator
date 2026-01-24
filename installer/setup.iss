@@ -2,7 +2,7 @@
 ; Copyright (c) 2025 Blue Line Scannables
 
 #define MyAppName "Invoice Creator"
-#define MyAppVersion "1.3.2"
+#define MyAppVersion "1.3.3"
 #define MyAppPublisher "Blue Line Scannables"
 #define MyAppURL "https://github.com/mikana30/Invoice_Creator"
 #define MyAppExeName "Invoice Creator.bat"
@@ -65,13 +65,19 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDi
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec
 
 [Code]
-// Kill any running node.exe processes from our app directory
+// Kill only node.exe processes running from our app directory (not other Node apps like Claude)
 procedure KillNodeProcess();
 var
   ResultCode: Integer;
+  AppPath: String;
+  PSCommand: String;
 begin
-  // Kill node.exe processes - taskkill will silently fail if not running
-  Exec('taskkill', '/F /IM node.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  // Get the app installation path
+  AppPath := ExpandConstant('{app}');
+  // Use PowerShell to find and kill only node.exe processes from our app directory
+  // This avoids killing other Node.js applications (like Claude Code)
+  PSCommand := 'Get-WmiObject Win32_Process -Filter "name=''node.exe''" | Where-Object { $_.CommandLine -like ''*' + AppPath + '*'' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }';
+  Exec('powershell.exe', '-ExecutionPolicy Bypass -NoProfile -Command "' + PSCommand + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   // Small delay to ensure process is fully terminated
   Sleep(500);
 end;

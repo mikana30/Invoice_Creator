@@ -2,7 +2,7 @@
 
 A full-stack invoice management application for small businesses/freelancers.
 
-**Current Version:** 1.3.1
+**Current Version:** 1.3.3
 **Platform:** Windows 10+ (browser-based)
 **GitHub:** https://github.com/mikana30/Invoice_Creator
 **Support:** bluelinescannables@gmail.com
@@ -110,11 +110,14 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 - **Recursive cost calculation** - cost auto-calculates by summing component costs
 - **Recursive inventory** - selling a product decrements all nested component inventory
 - Quick-add modals from invoice form for new clients/items
-- **Inline item creation** - create new items with price/cost directly in component dropdown
+- **Inline item creation** - create new items with price/cost directly in component dropdown (v1.3.2)
+  - When creating a new component inline, you can set its price and cost
+  - **"Include in cost" checkbox** - choose whether component cost is added to parent item's total cost
+  - Toggle include/exclude for each component in the list with checkbox
 - Archive/unarchive items (hidden from invoice autocomplete)
 - Inventory overview with quick adjust (+1, -1, +10, set value)
 
-**Key Principle:** There is NO distinction between "items" and "components" - they are all items in the same table. The `item_components` table simply links parent items to child items with a quantity.
+**Key Principle:** There is NO distinction between "items" and "components" - they are all items in the same table. The `item_components` table simply links parent items to child items with a quantity and an `includeInCost` flag.
 
 ### Financial Tracking
 - Configurable selling fees (percentage + fixed)
@@ -153,7 +156,7 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 ### Tables
 - **clients**: id, name, street, street2, city, state, zip, phone, email
 - **items**: id, name (unique), price, cost, inventory, reorderLevel, active
-- **item_components**: id, parentItemId, componentItemId, quantityNeeded (self-referencing for recipes)
+- **item_components**: id, parentItemId, componentItemId, quantityNeeded, includeInCost (self-referencing for recipes)
 - **invoices**: id, invoiceNumber, clientId, invoiceDate, dueDate, paymentStatus, amountPaid, paymentDate, notes, createdAt, total
 - **invoice_items**: id, invoiceId, itemId, quantity, price, taxExempt
 - **settings**: singleton row with business info, taxRate, invoiceNumberPrefix, invoiceNumberNextSequence, defaultPaymentTerms, sellingFeePercent, sellingFeeFixed, bannerImage
@@ -165,7 +168,7 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 ## API Endpoints
 
 ### Health Check
-- `GET /api/health` - Returns `{ status: 'ok', version: '1.3.1' }`
+- `GET /api/health` - Returns `{ status: 'ok', version: '1.3.3' }`
 
 ### Settings
 - `GET /settings` - Get all settings

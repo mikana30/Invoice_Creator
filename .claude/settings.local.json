@@ -113,7 +113,14 @@
       "Bash(git fetch:*)",
       "Bash(cd:*)",
       "Bash(\"/c/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\":*)",
-      "Skill(example-skills:frontend-design)"
+      "Skill(example-skills:frontend-design)",
+      "Bash(cmd /c \"if exist \"\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\"\" \\(echo Found\\) else \\(echo Not found\\)\")",
+      "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" installer/setup.iss)",
+      "Bash(build.bat)",
+      "Bash(cmd.exe //c build.bat)",
+      "Bash(cmd.exe //c \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\build.bat\")",
+      "Bash(cmd //c build.bat)",
+      "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" \"C:\\\\Users\\\\BlueLineScannables\\\\Desktop\\\\Invoice Creator\\\\installer\\\\setup.iss\")"
     ]
   }
 }

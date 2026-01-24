@@ -43,6 +43,7 @@ async function initDb() {
       parentItemId INTEGER NOT NULL,
       componentItemId INTEGER NOT NULL,
       quantityNeeded INTEGER NOT NULL DEFAULT 1,
+      includeInCost INTEGER DEFAULT 1,
       FOREIGN KEY (parentItemId) REFERENCES items(id) ON DELETE CASCADE,
       FOREIGN KEY (componentItemId) REFERENCES items(id) ON DELETE RESTRICT
     );
@@ -101,6 +102,7 @@ async function initDb() {
     { table: 'items', column: 'cost', type: 'REAL DEFAULT 0' },
     { table: 'items', column: 'inventory', type: 'INTEGER DEFAULT 0' },
     { table: 'items', column: 'reorderLevel', type: 'INTEGER DEFAULT 0' },
+    { table: 'item_components', column: 'includeInCost', type: 'INTEGER DEFAULT 1' },
   ];
 
   for (const { table, column, type } of columnsToAdd) {
@@ -128,6 +130,7 @@ async function initDb() {
           parentItemId INTEGER NOT NULL,
           componentItemId INTEGER NOT NULL,
           quantityNeeded INTEGER NOT NULL DEFAULT 1,
+          includeInCost INTEGER DEFAULT 1,
           FOREIGN KEY (parentItemId) REFERENCES items(id) ON DELETE CASCADE,
           FOREIGN KEY (componentItemId) REFERENCES items(id) ON DELETE RESTRICT
         )
@@ -135,8 +138,8 @@ async function initDb() {
 
       // Copy data from old table (mapping old column names to new)
       await db.exec(`
-        INSERT INTO item_components_new (id, parentItemId, componentItemId, quantityNeeded)
-        SELECT id, itemId, inventoryProductId, quantityNeeded FROM item_components
+        INSERT INTO item_components_new (id, parentItemId, componentItemId, quantityNeeded, includeInCost)
+        SELECT id, itemId, inventoryProductId, quantityNeeded, 1 FROM item_components
       `);
 
       // Drop old table and rename new one
