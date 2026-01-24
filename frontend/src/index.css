@@ -775,6 +775,11 @@ tbody tr:hover {
   display: none;
 }
 
+@page {
+  size: letter;
+  margin: 0.5in;
+}
+
 @media print {
   .no-print {
     display: none !important;
@@ -784,26 +789,132 @@ tbody tr:hover {
     display: block !important;
   }
 
-  body {
-    background: white;
-    color: #333;
+  html, body {
+    background: white !important;
+    color: #333 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    font-size: 12pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .app, .main-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    background: white !important;
   }
 
   .invoice-print {
-    padding: 0;
-    margin: 0;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: white !important;
+  }
+
+  .invoice-header {
+    margin-bottom: 1.5rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .invoice-header h1 {
+    font-size: 1.75rem !important;
+  }
+
+  .invoice-parties {
+    margin-bottom: 1.5rem !important;
+  }
+
+  .invoice-from, .invoice-to {
+    font-size: 11pt !important;
+  }
+
+  .invoice-from h3, .invoice-to h3 {
+    font-size: 12pt !important;
+    margin-bottom: 0.375rem !important;
+  }
+
+  .invoice-table {
+    margin-bottom: 1.5rem !important;
+    font-size: 11pt !important;
+  }
+
+  .invoice-table th,
+  .invoice-table td {
+    padding: 0.5rem 0.625rem !important;
+  }
+
+  .invoice-table th {
+    background: #2c3e50 !important;
+    color: white !important;
+  }
+
+  .invoice-totals {
+    width: 280px !important;
+  }
+
+  .invoice-totals td {
+    padding: 0.375rem 0.5rem !important;
+    font-size: 11pt !important;
+  }
+
+  .invoice-totals .grand-total {
+    font-size: 13pt !important;
+  }
+
+  /* Banner adjustments for print */
+  .invoice-banner {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .invoice-banner + div {
+    height: auto !important;
+  }
+
+  /* Notes section */
+  .invoice-print > div[style*="marginTop: '2rem'"] {
+    margin-top: 1rem !important;
+    padding: 0.75rem !important;
+  }
+
+  /* Thank you message */
+  .invoice-print > div[style*="marginTop: '3rem'"] {
+    margin-top: 1.5rem !important;
+  }
+
+  /* Prevent page breaks inside elements */
+  .invoice-table, .invoice-totals, .invoice-parties {
+    page-break-inside: avoid !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
   }
 }
 
-/* Invoice Print Preview */
+/* Invoice Print Preview - simulates 8.5x11 letter paper */
 .invoice-print {
   background: white;
   color: #333;
-  padding: 2.5rem;
-  max-width: 850px;
+  padding: 0.5in;
+  width: 8.5in;
+  min-height: 11in;
   margin: 0 auto;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
+  font-size: 12pt;
 }
 
 .invoice-header {
