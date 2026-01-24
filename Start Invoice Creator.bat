@@ -30,7 +30,7 @@ if exist "portable-node\node\node.exe" (
 :: Start the backend server
 echo.
 echo  =============================================
-echo            Invoice Creator v1.3.1
+echo            Invoice Creator v1.3.2
 echo  =============================================
 echo.
 echo  Starting server...

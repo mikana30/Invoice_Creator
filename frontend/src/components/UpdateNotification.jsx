@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 // Current version - keep in sync with package.json
-const CURRENT_VERSION = '1.3.1';
+const CURRENT_VERSION = '1.3.2';
 const GITHUB_REPO = 'mikana30/Invoice_Creator';
 const CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 

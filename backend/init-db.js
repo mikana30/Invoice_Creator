@@ -109,6 +109,46 @@ async function initDb() {
     } catch (e) { /* column already exists */ }
   }
 
+  // Migration: Rename old item_components columns if they exist
+  // Old schema had: itemId, inventoryProductId
+  // New schema has: parentItemId, componentItemId
+  try {
+    const tableInfo = await db.all(`PRAGMA table_info(item_components)`);
+    console.log('Migration check - columns found:', tableInfo.map(c => c.name).join(', '));
+    const hasOldColumns = tableInfo.some(col => col.name === 'itemId' || col.name === 'inventoryProductId');
+    console.log('Has old columns?', hasOldColumns);
+
+    if (hasOldColumns) {
+      console.log('>>> MIGRATING item_components table to new schema...');
+
+      // Create new table with correct schema
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS item_components_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          parentItemId INTEGER NOT NULL,
+          componentItemId INTEGER NOT NULL,
+          quantityNeeded INTEGER NOT NULL DEFAULT 1,
+          FOREIGN KEY (parentItemId) REFERENCES items(id) ON DELETE CASCADE,
+          FOREIGN KEY (componentItemId) REFERENCES items(id) ON DELETE RESTRICT
+        )
+      `);
+
+      // Copy data from old table (mapping old column names to new)
+      await db.exec(`
+        INSERT INTO item_components_new (id, parentItemId, componentItemId, quantityNeeded)
+        SELECT id, itemId, inventoryProductId, quantityNeeded FROM item_components
+      `);
+
+      // Drop old table and rename new one
+      await db.exec(`DROP TABLE item_components`);
+      await db.exec(`ALTER TABLE item_components_new RENAME TO item_components`);
+
+      console.log('Migration complete: item_components table updated.');
+    }
+  } catch (e) {
+    console.error('Migration check/run error:', e.message);
+  }
+
   // Performance indexes
   const indexesToCreate = [
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_invoiceNumber ON invoices(invoiceNumber)',

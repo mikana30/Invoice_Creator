@@ -132,13 +132,13 @@ function App() {
           <InvoiceList onEdit={handleEditInvoice} onView={handleViewInvoice} onDuplicate={handleDuplicateInvoice} refreshKey={invoiceListKey} />
         </div>
 
-        {/* Other views - conditionally rendered */}
-        {currentView === 'dashboard' && <Dashboard />}
-        {currentView === 'clients' && <ClientManager />}
-        {currentView === 'items' && <ItemManager />}
-        {currentView === 'inventory' && <InventoryManager />}
-        {currentView === 'settings' && <Settings />}
-        {currentView === 'export' && <ExportData />}
+        {/* Other views - conditionally rendered with keys to force fresh mount */}
+        {currentView === 'dashboard' && <Dashboard key="dashboard" />}
+        {currentView === 'clients' && <ClientManager key="clients" />}
+        {currentView === 'items' && <ItemManager key="items" />}
+        {currentView === 'inventory' && <InventoryManager key="inventory" />}
+        {currentView === 'settings' && <Settings key="settings" />}
+        {currentView === 'export' && <ExportData key="export" />}
       </>
     );
   };

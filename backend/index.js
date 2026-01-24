@@ -41,7 +41,7 @@ function validatePositiveInteger(value, fieldName) {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '1.3.1' });
+  res.json({ status: 'ok', version: '1.3.2' });
 });
 
 // Settings routes
