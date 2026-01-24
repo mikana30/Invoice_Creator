@@ -7,8 +7,8 @@ export default function InventoryManager() {
   const [message, setMessage] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
-  const [adjustingId, setAdjustingId] = useState(null);
-  const [adjustAmount, setAdjustAmount] = useState('');
+  const [sortColumn, setSortColumn] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   useEffect(() => {
     loadItems();
@@ -36,24 +36,16 @@ export default function InventoryManager() {
     }
   };
 
-  const handleSetStock = async (item) => {
-    const newQty = parseInt(adjustAmount);
-    if (isNaN(newQty) || newQty < 0) {
-      setMessage({ type: 'error', text: 'Please enter a valid quantity' });
-      return;
-    }
-    try {
-      await api.updateItem(item.id, { ...item, inventory: newQty });
-      setMessage({ type: 'success', text: `Set ${item.name} stock to ${newQty}` });
-      setAdjustingId(null);
-      setAdjustAmount('');
-      loadItems();
-    } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Failed to update inventory' });
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
     }
   };
 
-  // Filter items
+  // Filter and sort items
   const filteredItems = useMemo(() => {
     let filtered = items.filter(item => item.active !== 0); // Only show active items
 
@@ -70,8 +62,41 @@ export default function InventoryManager() {
       filtered = filtered.filter(item => item.name?.toLowerCase().includes(search));
     }
 
+    // Sort
+    filtered.sort((a, b) => {
+      let aVal, bVal;
+
+      switch (sortColumn) {
+        case 'name':
+          aVal = (a.name || '').toLowerCase();
+          bVal = (b.name || '').toLowerCase();
+          break;
+        case 'inventory':
+          aVal = a.inventory || 0;
+          bVal = b.inventory || 0;
+          break;
+        case 'reorderLevel':
+          aVal = a.reorderLevel || 0;
+          bVal = b.reorderLevel || 0;
+          break;
+        case 'status':
+          // Low stock items first when ascending
+          const aLow = (a.reorderLevel || 0) > 0 && (a.inventory || 0) <= (a.reorderLevel || 0);
+          const bLow = (b.reorderLevel || 0) > 0 && (b.inventory || 0) <= (b.reorderLevel || 0);
+          aVal = aLow ? 0 : 1;
+          bVal = bLow ? 0 : 1;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
     return filtered;
-  }, [items, searchTerm, showLowStockOnly]);
+  }, [items, searchTerm, showLowStockOnly, sortColumn, sortDirection]);
 
   const lowStockCount = items.filter(item => {
     const inventory = item.inventory || 0;
@@ -130,10 +155,30 @@ export default function InventoryManager() {
           <table>
             <thead>
               <tr>
-                <th>Item</th>
-                <th>In Stock</th>
-                <th>Reorder At</th>
-                <th>Status</th>
+                <th
+                  onClick={() => handleSort('name')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Item {sortColumn === 'name' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </th>
+                <th
+                  onClick={() => handleSort('inventory')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  In Stock {sortColumn === 'inventory' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </th>
+                <th
+                  onClick={() => handleSort('reorderLevel')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Reorder At {sortColumn === 'reorderLevel' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </th>
+                <th
+                  onClick={() => handleSort('status')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Status {sortColumn === 'status' && (sortDirection === 'asc' ? '▲' : '▼')}
+                </th>
                 <th>Quick Adjust</th>
               </tr>
             </thead>
@@ -155,32 +200,50 @@ export default function InventoryManager() {
                       )}
                     </td>
                     <td>
-                      {adjustingId === item.id ? (
-                        <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                          <input
-                            type="number"
-                            min="0"
-                            value={adjustAmount}
-                            onChange={(e) => setAdjustAmount(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSetStock(item);
-                              if (e.key === 'Escape') { setAdjustingId(null); setAdjustAmount(''); }
-                            }}
-                            style={{ width: '70px', padding: '0.25rem', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
-                            autoFocus
-                          />
-                          <button className="btn btn-sm btn-primary" onClick={() => handleSetStock(item)}>Set</button>
-                          <button className="btn btn-sm btn-secondary" onClick={() => { setAdjustingId(null); setAdjustAmount(''); }}>×</button>
-                        </div>
-                      ) : (
-                        <span
-                          style={{ cursor: 'pointer', ...(lowStock ? { color: '#e74c3c', fontWeight: 'bold' } : {}) }}
-                          onClick={() => { setAdjustingId(item.id); setAdjustAmount(inventory.toString()); }}
-                          title="Click to edit"
-                        >
-                          {inventory}
-                        </span>
-                      )}
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.editValue !== undefined ? item.editValue : inventory}
+                        onChange={(e) => {
+                          const newItems = items.map(i =>
+                            i.id === item.id ? { ...i, editValue: e.target.value } : i
+                          );
+                          setItems(newItems);
+                        }}
+                        onBlur={(e) => {
+                          const newQty = parseInt(e.target.value);
+                          if (!isNaN(newQty) && newQty >= 0 && newQty !== inventory) {
+                            handleAdjust(item, newQty - inventory);
+                          } else {
+                            // Reset to original if invalid
+                            const newItems = items.map(i =>
+                              i.id === item.id ? { ...i, editValue: undefined } : i
+                            );
+                            setItems(newItems);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.target.blur();
+                          }
+                          if (e.key === 'Escape') {
+                            const newItems = items.map(i =>
+                              i.id === item.id ? { ...i, editValue: undefined } : i
+                            );
+                            setItems(newItems);
+                          }
+                        }}
+                        style={{
+                          width: '70px',
+                          padding: '0.25rem',
+                          borderRadius: '4px',
+                          border: '1px solid var(--border-color)',
+                          background: 'var(--bg-secondary)',
+                          color: lowStock ? '#e74c3c' : 'var(--text-primary)',
+                          fontWeight: lowStock ? 'bold' : 'normal',
+                          textAlign: 'center'
+                        }}
+                      />
                     </td>
                     <td>{reorderLevel || '-'}</td>
                     <td>
