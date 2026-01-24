@@ -33,6 +33,9 @@ WizardStyle=modern
 UninstallDisplayName={#MyAppName}
 ; Auto-uninstall previous version
 UsePreviousAppDir=yes
+; Auto-close running applications
+CloseApplications=force
+RestartApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -65,21 +68,21 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDi
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec
 
 [Code]
-// Kill only node.exe processes running from our app directory (not other Node apps like Claude)
-procedure KillNodeProcess();
+// Kill Invoice Creator's node.exe process
+procedure KillAppProcesses();
 var
   ResultCode: Integer;
-  AppPath: String;
-  PSCommand: String;
+  NodePath: String;
 begin
-  // Get the app installation path
-  AppPath := ExpandConstant('{app}');
-  // Use PowerShell to find and kill only node.exe processes from our app directory
-  // This avoids killing other Node.js applications (like Claude Code)
-  PSCommand := 'Get-WmiObject Win32_Process -Filter "name=''node.exe''" | Where-Object { $_.CommandLine -like ''*' + AppPath + '*'' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }';
-  Exec('powershell.exe', '-ExecutionPolicy Bypass -NoProfile -Command "' + PSCommand + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  // Small delay to ensure process is fully terminated
-  Sleep(500);
+  // Kill the specific node.exe from our portable-node folder
+  NodePath := ExpandConstant('{app}\node\node.exe');
+  // Use taskkill to kill by exact path - this won't affect other Node apps
+  Exec('taskkill', '/F /IM node.exe /FI "MODULES eq ' + NodePath + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  // Also try killing by window title (the console window)
+  Exec('taskkill', '/F /FI "WINDOWTITLE eq Invoice Creator*"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  // Fallback: kill node.exe running from Program Files\Invoice Creator
+  Exec('powershell.exe', '-NoProfile -Command "Get-Process node -ErrorAction SilentlyContinue | Where-Object {$_.Path -like ''*Invoice Creator*''} | Stop-Process -Force -ErrorAction SilentlyContinue"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(1000);
 end;
 
 function GetUninstallString(): String;
@@ -122,7 +125,7 @@ begin
   if (CurStep=ssInstall) then
   begin
     // Kill node.exe before installing
-    KillNodeProcess();
+    KillAppProcesses();
     if (IsUpgrade()) then
     begin
       UnInstallOldVersion();
@@ -136,6 +139,6 @@ begin
   if (CurUninstallStep=usUninstall) then
   begin
     // Kill node.exe before uninstalling
-    KillNodeProcess();
+    KillAppProcesses();
   end;
 end;
