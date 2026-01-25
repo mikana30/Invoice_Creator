@@ -56,6 +56,9 @@ Invoice Creator/
 ├── tools/
 │   ├── generate-etsy-pdf.js  # Generate Etsy download PDF
 │   └── create-shortcuts.ps1  # Desktop/Start Menu shortcuts
+├── etsy-assets/              # Etsy listing images
+│   ├── etsy-listing-main.png # Main 2000x2000 listing image
+│   └── create-listing-image-v2.py  # Image generator script
 ├── assets/                   # App icons (optional)
 ├── LICENSE                   # Proprietary license
 ├── package.json              # Root package
@@ -96,7 +99,7 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 - Past-due alerts with visual highlighting
 - Invoice notes field
 - Void invoices (restores inventory, keeps record)
-- Print/PDF generation via react-to-print
+- Print/PDF generation via react-to-print (optimized for 8.5x11 letter paper)
 - Auto-opens PDF preview after creating invoice
 - Form state persists in localStorage (draft recovery)
 
@@ -115,7 +118,10 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
   - **"Include in cost" checkbox** - choose whether component cost is added to parent item's total cost
   - Toggle include/exclude for each component in the list with checkbox
 - Archive/unarchive items (hidden from invoice autocomplete)
-- Inventory overview with quick adjust (+1, -1, +10, set value)
+- **Inventory tab enhancements** (v1.3.3+):
+  - Direct inline editing of stock quantities (just click and type)
+  - Sortable columns (Item, In Stock, Reorder At, Status)
+  - Quick adjust buttons (+1, -1, +10)
 
 **Key Principle:** There is NO distinction between "items" and "components" - they are all items in the same table. The `item_components` table simply links parent items to child items with a quantity and an `includeInCost` flag.
 
@@ -257,10 +263,16 @@ node tools/generate-etsy-pdf.js
 2. PDF links to: https://github.com/mikana30/Invoice_Creator/releases/latest
 3. Customer downloads installer and runs it
 
+### Etsy Listing Assets
+- Main listing image: `etsy-assets/etsy-listing-main.png` (2000x2000px)
+- Regenerate with: `python etsy-assets/create-listing-image-v2.py`
+- Image shows actual app interface in monitor mockup with feature highlights
+
 ## Installer Behavior
-- **Upgrade**: Auto-uninstalls previous version, preserves database in AppData
-- **Uninstall**: Kills node.exe process, removes app files, keeps database in AppData
+- **Upgrade**: Auto-closes running app, auto-uninstalls previous version, preserves database in AppData
+- **Uninstall**: Auto-closes running app (kills node.exe by path/window title), removes app files, keeps database in AppData
 - **Fresh install**: Creates database on first app launch (not during install)
+- Uses `CloseApplications=force` for seamless upgrades without manual app closing
 
 ## Copyright Protection
 
@@ -336,6 +348,14 @@ Hidden ownership signatures embedded throughout codebase:
 
 ### [x] Items Dropdown Shows "None" (FIXED v1.2.4)
 - Added "No matching items found" feedback message
+
+### [x] Invoice PDF Not Fitting 8.5x11 Paper (FIXED v1.3.3)
+- **Issue:** Printed invoices didn't format well for standard letter paper
+- **Fix:** Added `@page` rule for letter size, proper margins, adjusted fonts/spacing for print
+
+### [x] Installer Not Auto-Closing App (FIXED v1.3.3)
+- **Issue:** Installer complained about not being able to close applications during upgrade
+- **Fix:** Added `CloseApplications=force`, multiple fallback methods to kill app by window title and path
 
 ---
 
