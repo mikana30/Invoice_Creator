@@ -103,6 +103,7 @@ async function initDb() {
     { table: 'items', column: 'inventory', type: 'INTEGER DEFAULT 0' },
     { table: 'items', column: 'reorderLevel', type: 'INTEGER DEFAULT 0' },
     { table: 'item_components', column: 'includeInCost', type: 'INTEGER DEFAULT 1' },
+    { table: 'invoices', column: 'shipping', type: 'REAL DEFAULT 0' },
   ];
 
   for (const { table, column, type } of columnsToAdd) {

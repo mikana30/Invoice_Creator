@@ -524,7 +524,7 @@ async function checkInventory(db, itemId, quantity, itemName) {
 }
 
 app.post('/invoices', async (req, res) => {
-  const { clientId, items, total, invoiceDate, notes } = req.body;
+  const { clientId, items, total, invoiceDate, notes, shipping } = req.body;
   const db = await openDb();
 
   try {
@@ -570,9 +570,9 @@ app.post('/invoices', async (req, res) => {
 
       // Insert invoice
       const result = await db.run(
-        `INSERT INTO invoices (clientId, total, invoiceDate, invoiceNumber, dueDate, paymentStatus, amountPaid, notes)
-         VALUES (?, ?, ?, ?, ?, 'unpaid', 0, ?)`,
-        [clientId, total, invDate, invoiceNumber, dueDate, notes || null]
+        `INSERT INTO invoices (clientId, total, invoiceDate, invoiceNumber, dueDate, paymentStatus, amountPaid, notes, shipping)
+         VALUES (?, ?, ?, ?, ?, 'unpaid', 0, ?, ?)`,
+        [clientId, total, invDate, invoiceNumber, dueDate, notes || null, shipping || 0]
       );
       const invoiceId = result.lastID;
 
@@ -630,7 +630,7 @@ async function restoreInventory(db, itemId, quantity) {
 
 app.put('/invoices/:id', async (req, res) => {
   const { id } = req.params;
-  const { clientId, items, total, invoiceDate, dueDate, paymentStatus, amountPaid, notes } = req.body;
+  const { clientId, items, total, invoiceDate, dueDate, paymentStatus, amountPaid, notes, shipping } = req.body;
   const db = await openDb();
 
   try {
@@ -694,8 +694,8 @@ app.put('/invoices/:id', async (req, res) => {
       // Update invoice
       await db.run(
         `UPDATE invoices SET clientId = ?, total = ?, invoiceDate = ?, dueDate = ?,
-         paymentStatus = ?, amountPaid = ?, notes = ?, paymentDate = ? WHERE id = ?`,
-        [clientId, total, invoiceDate, dueDate, paymentStatus || 'unpaid', finalAmountPaid, notes || null, newPaymentDate, id]
+         paymentStatus = ?, amountPaid = ?, notes = ?, paymentDate = ?, shipping = ? WHERE id = ?`,
+        [clientId, total, invoiceDate, dueDate, paymentStatus || 'unpaid', finalAmountPaid, notes || null, newPaymentDate, shipping || 0, id]
       );
 
       // Replace invoice items
@@ -920,10 +920,10 @@ app.post('/restore', async (req, res) => {
       if (invoices && invoices.length > 0) {
         for (const invoice of invoices) {
           await db.run(
-            `INSERT INTO invoices (id, clientId, invoiceNumber, invoiceDate, dueDate, paymentStatus, amountPaid, paymentDate, total, notes, createdAt)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO invoices (id, clientId, invoiceNumber, invoiceDate, dueDate, paymentStatus, amountPaid, paymentDate, total, notes, createdAt, shipping)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [invoice.id, invoice.clientId, invoice.invoiceNumber, invoice.invoiceDate, invoice.dueDate,
-             invoice.paymentStatus, invoice.amountPaid || 0, invoice.paymentDate, invoice.total, invoice.notes, invoice.createdAt]
+             invoice.paymentStatus, invoice.amountPaid || 0, invoice.paymentDate, invoice.total, invoice.notes, invoice.createdAt, invoice.shipping || 0]
           );
 
           // Restore invoice items

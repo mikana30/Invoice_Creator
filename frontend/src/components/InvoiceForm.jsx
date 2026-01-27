@@ -39,6 +39,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
     { itemId: null, name: '', quantity: 1, price: 0, cost: 0, taxExempt: false, suggestions: [], showSuggestions: false },
   ]);
   const [notes, setNotes] = useState('');
+  const [shipping, setShipping] = useState(0);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -71,6 +72,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
         taxExempt: item.taxExempt,
       })),
       notes,
+      shipping,
       savedAt: new Date().toISOString(),
     };
 
@@ -79,7 +81,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
     } catch (e) {
       console.warn('Failed to save draft to localStorage:', e);
     }
-  }, [editingInvoice, selectedClientId, clientSearch, invoiceDate, dueDate, paymentStatus, amountPaid, invoiceItems, notes]);
+  }, [editingInvoice, selectedClientId, clientSearch, invoiceDate, dueDate, paymentStatus, amountPaid, invoiceItems, notes, shipping]);
 
   // Clear draft from localStorage
   const clearDraftFromStorage = useCallback(() => {
@@ -116,6 +118,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
         if (draft.paymentStatus) setPaymentStatus(draft.paymentStatus);
         if (draft.amountPaid !== undefined) setAmountPaid(draft.amountPaid);
         if (draft.notes) setNotes(draft.notes);
+        if (draft.shipping !== undefined) setShipping(draft.shipping);
         if (draft.invoiceItems && draft.invoiceItems.length > 0) {
           setInvoiceItems(draft.invoiceItems.map(item => ({
             ...item,
@@ -182,6 +185,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
       setPaymentStatus(editingInvoice.paymentStatus || 'unpaid');
       setAmountPaid(editingInvoice.amountPaid || 0);
       setNotes(editingInvoice.notes || '');
+      setShipping(editingInvoice.shipping || 0);
 
       if (editingInvoice.items && editingInvoice.items.length > 0) {
         const loadedItems = editingInvoice.items.map((invItem) => ({
@@ -369,7 +373,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
   };
 
   const calculateTotal = () => {
-    return roundMoney(calculateSubtotal() + calculateTax());
+    return roundMoney(calculateSubtotal() + calculateTax() + (parseFloat(shipping) || 0));
   };
 
   const calculateItemCosts = () => {
@@ -437,6 +441,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
       paymentStatus,
       amountPaid: parseFloat(amountPaid) || 0,
       notes: notes.trim() || null,
+      shipping: parseFloat(shipping) || 0,
     };
 
     try {
@@ -459,6 +464,7 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
       setPaymentStatus('unpaid');
       setAmountPaid(0);
       setNotes('');
+      setShipping(0);
       setInvoiceItems([{ itemId: null, name: '', quantity: 1, price: 0, cost: 0, taxExempt: false, suggestions: [], showSuggestions: false }]);
       setHasUnsavedChanges(false);
 
@@ -705,20 +711,35 @@ export default function InvoiceForm({ editingInvoice, onSave, onCancel }) {
           + Add Item
         </button>
 
-        <div className="form-group" style={{ marginTop: '1rem' }}>
-          <label>Notes / Memo (appears on invoice)</label>
-          <textarea
-            value={notes}
-            onChange={(e) => { setNotes(e.target.value); setHasUnsavedChanges(true); }}
-            placeholder="Add any notes or special instructions for this invoice..."
-            rows="3"
-            className="notes-textarea"
-          />
+        <div className="form-row" style={{ marginTop: '1rem' }}>
+          <div className="form-group" style={{ flex: 3 }}>
+            <label>Notes / Memo (appears on invoice)</label>
+            <textarea
+              value={notes}
+              onChange={(e) => { setNotes(e.target.value); setHasUnsavedChanges(true); }}
+              placeholder="Add any notes or special instructions for this invoice..."
+              rows="3"
+              className="notes-textarea"
+            />
+          </div>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label>Shipping ($)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={shipping}
+              onChange={(e) => { setShipping(parseFloat(e.target.value) || 0); setHasUnsavedChanges(true); }}
+              placeholder="0.00"
+              style={{ textAlign: 'right' }}
+            />
+          </div>
         </div>
 
         <div className="invoice-summary">
           <p>Subtotal: ${calculateSubtotal().toFixed(2)}</p>
           <p>Tax ({(taxRate * 100).toFixed(1)}%): ${calculateTax().toFixed(2)}</p>
+          {(parseFloat(shipping) || 0) > 0 && <p>Shipping: ${(parseFloat(shipping) || 0).toFixed(2)}</p>}
           <p className="total">Total: ${calculateTotal().toFixed(2)}</p>
         </div>
 

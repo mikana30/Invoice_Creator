@@ -243,6 +243,12 @@ export default function InvoicePrint({ invoiceId, onBack }) {
                 <td>Tax ({(taxRate * 100).toFixed(1)}%):</td>
                 <td className="text-right">${calculateTax().toFixed(2)}</td>
               </tr>
+              {parseFloat(invoice.shipping || 0) > 0 && (
+                <tr>
+                  <td>Shipping:</td>
+                  <td className="text-right">${parseFloat(invoice.shipping).toFixed(2)}</td>
+                </tr>
+              )}
               <tr className="grand-total">
                 <td>Total:</td>
                 <td className="text-right">${parseFloat(invoice.total).toFixed(2)}</td>
