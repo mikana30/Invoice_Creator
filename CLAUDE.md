@@ -98,6 +98,7 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 - Due dates with configurable payment terms (Due on Receipt, Net 15/30/60)
 - Past-due alerts with visual highlighting
 - Invoice notes field
+- **Shipping field** - optional per-invoice shipping cost (added after tax, not taxed)
 - Void invoices (restores inventory, keeps record)
 - Print/PDF generation via react-to-print (optimized for 8.5x11 letter paper)
 - Auto-opens PDF preview after creating invoice
@@ -163,7 +164,7 @@ cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
 - **clients**: id, name, street, street2, city, state, zip, phone, email
 - **items**: id, name (unique), price, cost, inventory, reorderLevel, active
 - **item_components**: id, parentItemId, componentItemId, quantityNeeded, includeInCost (self-referencing for recipes)
-- **invoices**: id, invoiceNumber, clientId, invoiceDate, dueDate, paymentStatus, amountPaid, paymentDate, notes, createdAt, total
+- **invoices**: id, invoiceNumber, clientId, invoiceDate, dueDate, paymentStatus, amountPaid, paymentDate, notes, createdAt, total, shipping
 - **invoice_items**: id, invoiceId, itemId, quantity, price, taxExempt
 - **settings**: singleton row with business info, taxRate, invoiceNumberPrefix, invoiceNumberNextSequence, defaultPaymentTerms, sellingFeePercent, sellingFeeFixed, bannerImage
 
