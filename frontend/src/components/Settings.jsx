@@ -310,6 +310,9 @@ export default function Settings() {
         <h3>Invoice Banner</h3>
         <div className="form-group">
           <label>Banner Image (appears at top of invoices)</label>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0.5rem' }}>
+            Recommended: 850 x 150 pixels (or similar wide/short ratio). Max 2MB. PNG or JPG.
+          </p>
           <input
             type="file"
             accept="image/*"
