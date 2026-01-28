@@ -7,7 +7,7 @@ curl -s http://localhost:3001/api/health >nul 2>&1
 if %errorlevel% equ 0 (
     echo Invoice Creator is already running!
     start "" "http://localhost:3001"
-    timeout /t 2 /nobreak >nul
+    powershell -Command "Start-Sleep -Seconds 2" >nul
     exit /b
 )
 
@@ -24,7 +24,7 @@ if not exist "%NODE_EXE%" (
 :: Start the backend server
 echo.
 echo  =============================================
-echo            Invoice Creator v1.2.4
+echo            Invoice Creator v1.3.3
 echo  =============================================
 echo.
 echo  Starting server...
@@ -42,7 +42,7 @@ start /b "" "%NODE_EXE%" backend\index.js
 echo  Waiting for server to start...
 set /a attempts=0
 :waitloop
-timeout /t 1 /nobreak >nul
+powershell -Command "Start-Sleep -Seconds 1" >nul
 curl -s http://localhost:3001/api/health >nul 2>&1
 if %errorlevel% equ 0 goto :ready
 set /a attempts+=1
@@ -60,7 +60,7 @@ echo.
 
 :: Keep window open
 :keepalive
-timeout /t 5 /nobreak >nul
+powershell -Command "Start-Sleep -Seconds 5" >nul
 curl -s http://localhost:3001/api/health >nul 2>&1
 if %errorlevel% equ 0 goto :keepalive
 

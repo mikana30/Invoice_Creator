@@ -22,15 +22,13 @@ The app runs as a local web server and opens in your default browser.
 
 ```
 Invoice Creator/
-├── launcher/
-│   └── launch.bat            # Main app launcher
 ├── portable-node/
 │   └── node/                 # Bundled Node.js runtime
 ├── backend/
 │   ├── index.js              # Express server & API routes
 │   ├── database.js           # SQLite connection (handles AppData path)
 │   ├── init-db.js            # Schema initialization
-│   └── database.db           # SQLite database file (dev only)
+│   └── database.db           # SQLite database file
 ├── frontend/
 │   ├── index.html            # Main HTML
 │   ├── dist/                 # Production build output
@@ -52,36 +50,28 @@ Invoice Creator/
 │           └── SupportForm.jsx       # Help/feedback form
 ├── installer/
 │   ├── setup.iss             # Inno Setup installer script
-│   └── Invoice Creator.bat   # Launcher included in installer
+│   └── Invoice Creator.bat   # App launcher (single source of truth)
 ├── tools/
-│   ├── generate-etsy-pdf.js  # Generate Etsy download PDF
-│   └── create-shortcuts.ps1  # Desktop/Start Menu shortcuts
+│   └── generate-etsy-pdf.js  # Generate Etsy download PDF
 ├── etsy-assets/              # Etsy listing images
 │   ├── etsy-listing-main.png # Main 2000x2000 listing image
 │   └── create-listing-image-v2.py  # Image generator script
 ├── assets/                   # App icons (optional)
 ├── LICENSE                   # Proprietary license
+├── build.bat                 # Build frontend + create installer
 ├── package.json              # Root package
 └── CLAUDE.md                 # This file
 ```
 
-## Running the App
+## Workflow
 
-### Production (User Experience)
-1. Double-click `launcher/launch.bat` (or desktop shortcut after install)
-2. Browser opens automatically to http://localhost:3001
-3. Close the console window to stop the app
+**Always test the installed version, not a dev build.**
 
-### Development
-```bash
-npm run dev    # Starts backend + frontend dev servers
-```
-
-Or manually:
-```bash
-cd backend && node index.js    # Terminal 1 - Backend on port 3001
-cd frontend && npm run dev     # Terminal 2 - Vite dev server on port 5173
-```
+1. Make code changes
+2. Build: `build.bat` (builds frontend + creates installer)
+3. Install: Run `dist/Invoice Creator Setup X.X.X.exe`
+4. Test the installed app from Start Menu or Desktop shortcut
+5. Close the console window to stop the app
 
 ## Key Features
 
@@ -320,8 +310,15 @@ Hidden ownership signatures embedded throughout codebase:
 17. When things go wrong: `git checkout .` to reset, then start smaller
 18. Always know the rollback plan BEFORE making changes
 
+### After Code Changes (MANDATORY)
+19. **Always rebuild and install locally** after pushing changes:
+    - Build frontend: `npm run build`
+    - Build installer: Run Inno Setup on `installer/setup.iss`
+    - Install locally: Run the installer with `/SILENT` flag
+    - User tests the INSTALLED version, not dev version
+
 ### Documentation (MANDATORY)
-19. **Log every failed fix** in the "Failed Fixes" section below with:
+20. **Log every failed fix** in the "Failed Fixes" section below with:
     - What was tried
     - Why it failed
     - What to avoid next time
@@ -362,4 +359,8 @@ Hidden ownership signatures embedded throughout codebase:
 
 ## Failed Fixes (Do Not Repeat)
 
-(None currently - section preserved for future reference)
+### [x] Linux timeout command on Windows (NEVER DO THIS)
+- **What happened:** Used `timeout /t 15` (Linux syntax) instead of Windows `powershell Start-Sleep`
+- **Result:** Infinite error loop spamming "timeout: invalid time interval '/t'"
+- **Fix:** NEVER use `timeout` command. Use `powershell -Command "Start-Sleep -Seconds X"` instead
+- **Also avoid:** Any Linux-style commands in bash on Windows (use PowerShell or cmd equivalents)
