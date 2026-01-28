@@ -246,6 +246,7 @@ gh release upload v1.x.x "dist/Invoice Creator Setup 1.x.x.exe"
 node tools/generate-etsy-pdf.js
 # Upload etsy-products/Invoice_Creator_Download.pdf to Etsy
 ```
+**NOTE:** The PDF link (`/releases/latest`) never changes - it always points to the newest release automatically. Only regenerate the PDF if you change its branding/content, NOT for new releases.
 
 ## Etsy Distribution
 
