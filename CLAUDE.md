@@ -364,3 +364,14 @@ Hidden ownership signatures embedded throughout codebase:
 - **Result:** Infinite error loop spamming "timeout: invalid time interval '/t'"
 - **Fix:** NEVER use `timeout` command. Use `powershell -Command "Start-Sleep -Seconds X"` instead
 - **Also avoid:** Any Linux-style commands in bash on Windows (use PowerShell or cmd equivalents)
+
+### [x] PowerShell $_ variable escaping in Bash (NEVER DO THIS)
+- **What happened:** Used `$_.Path` in PowerShell command run through Bash tool
+- **Result:** Bash interprets `$_` as a variable, mangles it to `\extglob.Path` or similar garbage
+- **Fix:** NEVER use `$_` or `$variable` in PowerShell when running through Bash
+- **Correct approach:** For killing processes, use SIMPLE commands:
+  ```
+  powershell -Command "Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force"
+  ```
+- **DO NOT use:** Complex Where-Object filters with `$_.Path` - they WILL break
+- **Alternative:** Use `taskkill /F /IM node.exe` for simple process killing (no path filtering)
